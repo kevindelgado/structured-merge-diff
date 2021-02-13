@@ -154,6 +154,12 @@ func (tv TypedValue) RemoveItems(items *fieldpath.Set) *TypedValue {
 	return &tv
 }
 
+// ExtractItems extracts each provided list or map item from the value.
+func (tv TypedValue) ExtractItems(items *fieldpath.Set) *TypedValue {
+	tv.value = extractItemsWithSchema(tv.value, items, tv.schema, tv.typeRef)
+	return &tv
+}
+
 // NormalizeUnions takes the new object and normalizes the union:
 // - If discriminator changed to non-nil, and a new field has been added
 // that doesn't match, an error is returned,
