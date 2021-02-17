@@ -14,8 +14,6 @@ limitations under the License.
 package typed
 
 import (
-	"fmt"
-
 	"sigs.k8s.io/structured-merge-diff/v4/fieldpath"
 	"sigs.k8s.io/structured-merge-diff/v4/schema"
 	"sigs.k8s.io/structured-merge-diff/v4/value"
@@ -39,19 +37,15 @@ func extractOrRemoveItemsWithSchema(val value.Value, toExtract *fieldpath.Set, s
 		shouldExtract:     shouldExtract,
 	}
 	resolveSchema(schema, typeRef, val, w)
-	fmt.Printf("final w.out = %+v\n", w.out)
 	return value.NewValueInterface(w.out)
 }
 
 func (w *extractOrRemoveWalker) doScalar(t *schema.Scalar) ValidationErrors {
-	fmt.Println("scalar ex called")
 	w.out = w.value.Unstructured()
-	fmt.Printf("exScalar w.out = %+v\n", w.out)
 	return nil
 }
 
 func (w *extractOrRemoveWalker) doList(t *schema.List) (errs ValidationErrors) {
-	fmt.Println("list ex called")
 	l := w.value.AsListUsing(w.allocator)
 	defer w.allocator.Free(l)
 	// If list is null, empty, or atomic just return
@@ -67,49 +61,41 @@ func (w *extractOrRemoveWalker) doList(t *schema.List) (errs ValidationErrors) {
 		// Ignore error because we have already validated this list
 		pe, _ := listItemToPathElement(w.allocator, w.schema, t, i, item)
 		path, _ := fieldpath.MakePath(pe)
-		hasPath := w.toExtractOrRemove.Has(path)
-		fmt.Printf("pe = %+v\n", pe)
-		fmt.Printf("path = %+v\n", path)
-		fmt.Printf("hasPath = %+v\n", hasPath)
-		fmt.Printf("w.toExtract = %+v\n", w.toExtractOrRemove)
-		if hasPath {
+		// save items that do have the path when we shouldExtract
+		// but ignore it when we are removing (i.e. !w.shouldExtract)
+		if w.toExtractOrRemove.Has(path) {
 			if w.shouldExtract {
 				newItems = append(newItems, item.Unstructured())
 			} else {
 				continue
 			}
-			//continue
 		}
 		if subset := w.toExtractOrRemove.WithPrefix(pe); !subset.Empty() {
 			item = extractOrRemoveItemsWithSchema(item, subset, w.schema, t.ElementType, w.shouldExtract)
 		}
+		// save items that do not have the path only when removing (i.e. !w.shouldExtract)
 		if !w.shouldExtract {
 			newItems = append(newItems, item.Unstructured())
 		}
 	}
-	fmt.Printf("newItems = %+v\n", newItems)
 	if len(newItems) > 0 {
 		w.out = newItems
 	}
-	fmt.Printf("exList w.out = %+v\n", w.out)
 	return nil
 }
 
 func (w *extractOrRemoveWalker) doMap(t *schema.Map) ValidationErrors {
-	fmt.Println("map ex called")
 	m := w.value.AsMapUsing(w.allocator)
 	if m != nil {
 		defer w.allocator.Free(m)
 	}
 	// If map is null, empty, or atomic just return
 	if m == nil || m.Empty() || t.ElementRelationship == schema.Atomic {
-		fmt.Println("NULL RETURN")
 		return nil
 	}
 
 	fieldTypes := map[string]schema.TypeRef{}
 	for _, structField := range t.Fields {
-		fmt.Printf("structField = %+v\n", structField)
 		fieldTypes[structField.Name] = structField.Type
 	}
 
@@ -119,48 +105,27 @@ func (w *extractOrRemoveWalker) doMap(t *schema.Map) ValidationErrors {
 		path, _ := fieldpath.MakePath(pe)
 		hasPath := w.toExtractOrRemove.Has(path)
 		fieldType := t.ElementType
-		fmt.Printf("pe = %+v\n", pe)
-		fmt.Printf("path = %+v\n", path)
-		fmt.Printf("fieldType = %+v\n", fieldType)
-		fmt.Printf("w.toExtract = %+v\n", w.toExtractOrRemove)
 		if ft, ok := fieldTypes[k]; ok {
 			fieldType = ft
 		}
-		// what does it  mean to not have path?
-		// why does w.toExtract not Have the .list path?
-		// Do I need to do some sort of is subpath or something? (Maybe I should check how remove works)
 		if hasPath {
-			//fmt.Println("toExtract doesn't have path, returning true")
-			// why return true
 			if w.shouldExtract {
 				newMap[k] = val.Unstructured()
 			}
 			return true
-			//return true
-			//fmt.Println("toExtract doesn't have path, recursing")
-			//val = extractItemsWithSchema(val, w.toExtract, w.schema, fieldType)
 		}
-		//  what are we doing with prefix?
-		subset := w.toExtractOrRemove.WithPrefix(pe)
-		if subset.Empty() {
+		if subset := w.toExtractOrRemove.WithPrefix(pe); !subset.Empty() {
+			val = extractOrRemoveItemsWithSchema(val, subset, w.schema, fieldType, w.shouldExtract)
+		} else {
 			if w.shouldExtract {
 				return true
 			}
-		} else {
-			if !w.shouldExtract {
-				val = extractOrRemoveItemsWithSchema(val, subset, w.schema, fieldType, w.shouldExtract)
-			}
-		}
-		if w.shouldExtract {
-			val = extractOrRemoveItemsWithSchema(val, subset, w.schema, fieldType, w.shouldExtract)
 		}
 		newMap[k] = val.Unstructured()
-		// why return true?
 		return true
 	})
 	if len(newMap) > 0 {
 		w.out = newMap
 	}
-	fmt.Printf("exMap w.out = %+v\n", w.out)
 	return nil
 }
