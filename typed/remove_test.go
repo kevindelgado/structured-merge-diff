@@ -141,6 +141,92 @@ var associativeListSchema = `types:
       scalar: string
 `
 
+var nestedTypesSchema = `types:
+- name: myType
+  map:
+    fields:
+      - name: listOfLists
+        type:
+          namedType: listOfLists
+      - name: listOfMaps
+        type:
+          namedType: listOfMaps
+      - name: mapOfLists
+        type:
+          namedType: mapOfLists
+      - name: mapOfMaps
+        type:
+          namedType: mapOfMaps
+      - name: mapOfMapsRecursive
+        type:
+          namedType: mapOfMapsRecursive
+      - name: struct
+        type:
+          namedType: struct
+- name: struct
+  map:
+    fields:
+    - name: name
+      type:
+        scalar: string
+    - name: value
+      type:
+        scalar: number
+- name: listOfLists
+  list:
+    elementType:
+      map:
+        fields:
+        - name: name
+          type:
+            scalar: string
+        - name: value
+          type:
+            namedType: list
+    elementRelationship: associative
+    keys:
+    - name
+- name: list
+  list:
+    elementType:
+      scalar: string
+    elementRelationship: associative
+- name: listOfMaps
+  list:
+    elementType:
+      map:
+        fields:
+        - name: name
+          type:
+            scalar: string
+        - name: value
+          type:
+            namedType: map
+    elementRelationship: associative
+    keys:
+    - name
+- name: map
+  map:
+    elementType:
+      scalar: string
+    elementRelationship: associative
+- name: mapOfLists
+  map:
+    elementType:
+      namedType: list
+    elementRelationship: associative
+- name: mapOfMaps
+  map:
+    elementType:
+      namedType: map
+    elementRelationship: associative
+- name: mapOfMapsRecursive
+  map:
+    elementType:
+      namedType: mapOfMapsRecursive
+    elementRelationship: associative
+`
+
 var removeCases = []removeTestCase{{
 	name:         "simple pair",
 	rootTypeName: "stringPair",
@@ -216,6 +302,16 @@ var removeCases = []removeTestCase{{
 		_NS(_P("atomicList")),
 		``,
 		`{"atomicList":["a", "a", "a"]}`,
+	}},
+}, {
+	name:         "nested types",
+	rootTypeName: "myType",
+	schema:       typed.YAMLObject(nestedTypesSchema),
+	quadruplets: []removeQuadruplet{{
+		`{"listOfLists": [{"name": "a", "value": ["b", "c"]}, {"name": "d"}]}`,
+		_NS(_P("listOfLists", _KBF("name", "d"))),
+		`{"listOfLists": [{"name": "a", "value": ["b", "c"]}]}`,
+		`{"listOfLists": [{"name": "d"}]}`,
 	}},
 }}
 
