@@ -216,17 +216,6 @@ var removeCases = []removeTestCase{{
 		_NS(_P("atomicList")),
 		``,
 		`{"atomicList":["a", "a", "a"]}`,
-		//}, {
-		//	// questions about the rest of this list
-		//	`{"list":[{"key":"a","id":1,"value":{"a":"a"}}]}`,
-		//	_NS(_P("list", _KBF("key", "a", "id", "1", "value", "a"))),
-		//	`{"list":[{"key":"a","id":1,"value":{"a":"a"}}]}`,
-		//	`{"list":null}`,
-		//}, {
-		//	`{"list":[{"key":"a","id":1,"value":{"a":"a"}}]}`,
-		//	_NS(_P("list", _KBF("key", "a", "id", "1"))),
-		//	`{"list":null}`,
-		//	`{"list":[{"key":"a","id":1,"value":{"a":"a"}}]}`,
 	}},
 }}
 
