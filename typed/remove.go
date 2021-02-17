@@ -66,8 +66,8 @@ func (w *removingWalker) doList(t *schema.List) (errs ValidationErrors) {
 		// Ignore error because we have already validated this list
 		pe, _ := listItemToPathElement(w.allocator, w.schema, t, i, item)
 		path, _ := fieldpath.MakePath(pe)
-		// save items that do have the path when we shouldExtract
-		// but ignore it when we are removing (i.e. !w.shouldExtract)
+		// save items on the path when we shouldExtract
+		// but ignore them when we are removing (i.e. !w.shouldExtract)
 		if w.toRemove.Has(path) {
 			if w.shouldExtract {
 				newItems = append(newItems, item.Unstructured())
@@ -77,11 +77,13 @@ func (w *removingWalker) doList(t *schema.List) (errs ValidationErrors) {
 		}
 		if subset := w.toRemove.WithPrefix(pe); !subset.Empty() {
 			item = removeItemsWithSchema(item, subset, w.schema, t.ElementType, w.shouldExtract)
+		} else {
+			// don't save items not on the path when we shouldExtract.
+			if w.shouldExtract {
+				continue
+			}
 		}
-		// save items that do not have the path only when removing (i.e. !w.shouldExtract)
-		if !w.shouldExtract {
-			newItems = append(newItems, item.Unstructured())
-		}
+		newItems = append(newItems, item.Unstructured())
 	}
 	if len(newItems) > 0 {
 		w.out = newItems
@@ -112,7 +114,8 @@ func (w *removingWalker) doMap(t *schema.Map) ValidationErrors {
 		if ft, ok := fieldTypes[k]; ok {
 			fieldType = ft
 		}
-		// save items on the path only when extracting.
+		// save values on the path when we shouldExtract
+		// but ignore them when we are removing (i.e. !w.shouldExtract)
 		if w.toRemove.Has(path) {
 			if w.shouldExtract {
 				newMap[k] = val.Unstructured()
@@ -122,7 +125,7 @@ func (w *removingWalker) doMap(t *schema.Map) ValidationErrors {
 		if subset := w.toRemove.WithPrefix(pe); !subset.Empty() {
 			val = removeItemsWithSchema(val, subset, w.schema, fieldType, w.shouldExtract)
 		} else {
-			// don't save items not on the path when extracting.
+			// don't save values not on the path when we shouldExtract.
 			if w.shouldExtract {
 				return true
 			}
