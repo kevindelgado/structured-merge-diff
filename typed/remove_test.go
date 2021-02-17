@@ -214,89 +214,203 @@ var associativeListSchema = `types:
       scalar: string
 `
 
+var nestedTypesSchema = `types:
+- name: myType
+  map:
+    fields:
+      - name: listOfLists
+        type:
+          namedType: listOfLists
+      - name: listOfMaps
+        type:
+          namedType: listOfMaps
+      - name: mapOfLists
+        type:
+          namedType: mapOfLists
+      - name: mapOfMaps
+        type:
+          namedType: mapOfMaps
+      - name: mapOfMapsRecursive
+        type:
+          namedType: mapOfMapsRecursive
+      - name: struct
+        type:
+          namedType: struct
+- name: struct
+  map:
+    fields:
+    - name: name
+      type:
+        scalar: string
+    - name: value
+      type:
+        scalar: number
+- name: listOfLists
+  list:
+    elementType:
+      map:
+        fields:
+        - name: name
+          type:
+            scalar: string
+        - name: value
+          type:
+            namedType: list
+    elementRelationship: associative
+    keys:
+    - name
+- name: list
+  list:
+    elementType:
+      scalar: string
+    elementRelationship: associative
+- name: listOfMaps
+  list:
+    elementType:
+      map:
+        fields:
+        - name: name
+          type:
+            scalar: string
+        - name: value
+          type:
+            namedType: map
+    elementRelationship: associative
+    keys:
+    - name
+- name: map
+  map:
+    elementType:
+      scalar: string
+    elementRelationship: associative
+- name: mapOfLists
+  map:
+    elementType:
+      namedType: list
+    elementRelationship: associative
+- name: mapOfMaps
+  map:
+    elementType:
+      namedType: map
+    elementRelationship: associative
+- name: mapOfMapsRecursive
+  map:
+    elementType:
+      namedType: mapOfMapsRecursive
+    elementRelationship: associative
+`
+
 var removeCases = []removeTestCase{{
 	name:         "simple pair",
 	rootTypeName: "stringPair",
 	schema:       typed.YAMLObject(simplePairSchema),
 	triplets: []removeTriplet{{
-		//`{"key":"foo","value":{}}`,
-		//`{"key":"foo","value":1}`,
-		//`{"key":"foo","value":1}`,
-		//}, {
-		//	`{"key":"foo","value":{}}`,
-		//	`{"key":"foo","value":1}`,
-		//	`{"key":"foo","value":1}`,
-		//}, {
-		//	`{"key":"foo","value":1}`,
-		//	`{"key":"foo","value":{}}`,
-		//	`{"key":"foo","value":{}}`,
-		//}, {
-		//	`{"key":"foo","value":null}`,
-		//	`{"key":"foo","value":{}}`,
-		//	`{"key":"foo","value":{}}`,
-		//}, {
+		`{"key":"foo"}`,
+		_NS(_P("key")),
+		``,
+		`{"key":"foo"}`,
+	}, {
+		`{"key":"foo"}`,
+		_NS(),
+		`{"key":"foo"}`,
+		``,
+	}, {
 		`{"key":"foo","value":true}`,
-		//`{"key":"foo"}`,
 		_NS(_P("key")),
 		`{"value":true}`,
 		`{"key":"foo"}`,
-		//},{
-		//	`{"key":"foo", "value": {"a": "b"}}`,
-
+	}, {
+		`{"key":"foo","value":{"a": "b"}}`,
+		_NS(_P("value")),
+		`{"key":"foo"}`,
+		`{"value":{"a": "b"}}`,
+	}},
+}, {
+	name:         "struct grab bag",
+	rootTypeName: "myStruct",
+	schema:       typed.YAMLObject(structGrabBagSchema),
+	triplets: []removeTriplet{{
+		`{"setBool":[false]}`,
+		_NS(_P("setBool", _V(false))),
+		// is this the right remove output?
+		`{"setBool":null}`,
+		`{"setBool":[false]}`,
+	}, {
+		`{"setBool":[false]}`,
+		_NS(_P("setBool", _V(true))),
+		`{"setBool":[false]}`,
+		`{"setBool":null}`,
+	}, {
+		`{"setBool":[true,false]}`,
+		_NS(_P("setBool", _V(true))),
+		`{"setBool":[false]}`,
+		`{"setBool":[true]}`,
+	}, {
+		`{"setBool":[true,false]}`,
+		_NS(_P("setBool")),
+		``,
+		`{"setBool":[true,false]}`,
+	}, {
+		`{"setNumeric":[1,2,3,4.5]}`,
+		_NS(_P("setNumeric", _V(1)), _P("setNumeric", _V(4.5))),
+		`{"setNumeric":[2,3]}`,
+		`{"setNumeric":[1,4.5]}`,
+	}, {
+		`{"setStr":["a","b","c"]}`,
+		_NS(_P("setStr", _V("a"))),
+		`{"setStr":["b","c"]}`,
+		`{"setStr":["a"]}`,
 	}},
 }, {
 	name:         "associative list",
 	rootTypeName: "myRoot",
 	schema:       typed.YAMLObject(associativeListSchema),
 	triplets: []removeTriplet{{
-		`{"list":[{"key":"a","id":1},{"key":"b","id":2},{"key":"c","id":3}]}`,
+		`{"list":[{"key":"a","id":1},{"key":"a","id":2},{"key":"b","id":1}]}`,
 		_NS(_P("list", _KBF("key", "a", "id", 1))),
-		`{"list":[{"key":"b","id":2},{"key":"c","id":3}]}`,
+		`{"list":[{"key":"a","id":2},{"key":"b","id":1}]}`,
 		`{"list":[{"key":"a","id":1}]}`,
+	}, {
+		`{"atomicList":["a", "a", "a"]}`,
+		_NS(_P("atomicList")),
+		``,
+		`{"atomicList":["a", "a", "a"]}`,
+		//}, {
+		//	// questions about the rest of this list
+		//	`{"list":[{"key":"a","id":1,"value":{"a":"a"}}]}`,
+		//	_NS(_P("list", _KBF("key", "a", "id", "1", "value", "a"))),
+		//	`{"list":[{"key":"a","id":1,"value":{"a":"a"}}]}`,
+		//	`{"list":null}`,
+		//}, {
+		//	`{"list":[{"key":"a","id":1,"value":{"a":"a"}}]}`,
+		//	_NS(_P("list", _KBF("key", "a", "id", "1"))),
+		//	`{"list":null}`,
+		//	`{"list":[{"key":"a","id":1,"value":{"a":"a"}}]}`,
 	}},
-	//}
 	//}, {
-	//name:         "struct grab bag",
-	//rootTypeName: "myStruct",
-	//schema:       typed.YAMLObject(structGrabBagSchema),
-	//triplets: []removeTriplet{{
-	//	//	`{"numeric":1}`,
-	//	//	`{"numeric":3.14159}`,
-	//	//	`{"numeric":3.14159}`,
-	//	//}, {
-	//	//	`{"numeric":3.14159}`,
-	//	//	`{"numeric":1}`,
-	//	//	`{"numeric":1}`,
-	//	//}, {
-	//	`{"string":"aoeu"}`,
-	//	`{"bool":true}`,
-	//	`{"string":"aoeu","bool":true}`,
-	//	//}, {
-	//	//	`{"setStr":["a","b","c"]}`,
-	//	//	`{"setStr":["a","b"]}`,
-	//	//	`{"setStr":["a","b","c"]}`,
-	//	//}, {
-	//	//	`{"setStr":["a","b"]}`,
-	//	//	`{"setStr":["a","b","c"]}`,
-	//	//	`{"setStr":["a","b","c"]}`,
-	//	//}, {
-	//	//	`{"setStr":["a","b","c"]}`,
-	//	//	`{"setStr":[]}`,
-	//	//	`{"setStr":["a","b","c"]}`,
-	//	//}, {
-	//	//	`{"setStr":[]}`,
-	//	//	`{"setStr":["a","b","c"]}`,
-	//	//	`{"setStr":["a","b","c"]}`,
-	//	//}, {
-	//	//	`{"setBool":[true]}`,
-	//	//	`{"setBool":[false]}`,
-	//	//	`{"setBool":[true,false]}`,
-	//	//}, {
-	//	//	`{"setNumeric":[1,2,3.14159]}`,
-	//	//	`{"setNumeric":[1,2,3]}`,
-	//	//	// KNOWN BUG: this order is wrong
-	//	//	`{"setNumeric":[1,2,3.14159,3]}`,
-	//}},
+	//	name:         "nested types",
+	//	rootTypeName: "myType",
+	//	schema:       typed.YAMLObject(nestedTypesSchema),
+	//	triplets: []removeTriplet{{
+	//		//`
+	//		//	listOfLists:
+	//		//	- name: a
+	//		//	  value:
+	//		//	  - b
+	//		//	  - c
+	//		//`,
+	//		`{"listOfLists":[{"name": "a", "value":["b", "c"]}]}`,
+	//		_NS(),
+	//		`{"listOfLists":[{"name": "a", "value":["b", "c"]}]}`,
+	//		``,
+	//	}, {
+	//		`{"listOfLists":[{"name": "a", "value":["b", "c"]}, {"name": "d"}]}`,
+	//		_NS(
+	//			_P("listsOfLists", _KBF("name", "d")),
+	//		),
+	//		`{"listOfLists":[{"name": "a", "value":["b", "c"]}]}`,
+	//		`{"listOfLists":[{"name": "d"}]}`,
+	//	}},
 }}
 
 func (tt removeTestCase) test(t *testing.T) {
