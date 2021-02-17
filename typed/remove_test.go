@@ -29,23 +29,15 @@ type removeTestCase struct {
 	name         string
 	rootTypeName string
 	schema       typed.YAMLObject
-	triplets     []removeTriplet
+	quadruplets  []removeQuadruplet
 }
 
-type removeTriplet struct {
-	object typed.YAMLObject
-	set    *fieldpath.Set
-	out    typed.YAMLObject
-	exOut  typed.YAMLObject
+type removeQuadruplet struct {
+	object        typed.YAMLObject
+	set           *fieldpath.Set
+	removeOutput  typed.YAMLObject
+	extractOutput typed.YAMLObject
 }
-
-//var (
-//	// Short names for readable test cases.
-//	_NS  = fieldpath.NewSet
-//	_P   = fieldpath.MakePathOrDie
-//	_KBF = fieldpath.KeyByFields
-//	_V   = value.NewValueInterface
-//)
 
 var simplePairSchema = `types:
 - name: stringPair
@@ -101,71 +93,6 @@ var structGrabBagSchema = `types:
             scalar: numeric
           elementRelationship: associative
 `
-var nestedMapSchema = `types:
-- name: nestedMap
-  map:
-    fields:
-    - name: inner
-      type:
-        map:
-          elementType:
-            namedType: __untyped_atomic_
-- name: __untyped_atomic_
-  scalar: untyped
-  list:
-    elementType:
-      namedType: __untyped_atomic_
-    elementRelationship: atomic
-  map:
-    elementType:
-      namedType: __untyped_atomic_
-    elementRelationship: atomic
-`
-
-var nestedStructSchema = `types:
-- name: nestedStruct
-  map:
-    fields:
-    - name: inner
-      type:
-        map:
-          fields:
-          - name: value
-            type:
-              namedType: __untyped_atomic_
-- name: __untyped_atomic_
-  scalar: untyped
-  list:
-    elementType:
-      namedType: __untyped_atomic_
-    elementRelationship: atomic
-  map:
-    elementType:
-      namedType: __untyped_atomic_
-    elementRelationship: atomic
-`
-
-var nestedListSchema = `types:
-- name: nestedList
-  map:
-    fields:
-    - name: inner
-      type:
-        list:
-          elementType:
-            namedType: __untyped_atomic_
-          elementRelationship: atomic
-- name: __untyped_atomic_
-  scalar: untyped
-  list:
-    elementType:
-      namedType: __untyped_atomic_
-    elementRelationship: atomic
-  map:
-    elementType:
-      namedType: __untyped_atomic_
-    elementRelationship: atomic
-`
 
 var associativeListSchema = `types:
 - name: myRoot
@@ -214,97 +141,11 @@ var associativeListSchema = `types:
       scalar: string
 `
 
-var nestedTypesSchema = `types:
-- name: myType
-  map:
-    fields:
-      - name: listOfLists
-        type:
-          namedType: listOfLists
-      - name: listOfMaps
-        type:
-          namedType: listOfMaps
-      - name: mapOfLists
-        type:
-          namedType: mapOfLists
-      - name: mapOfMaps
-        type:
-          namedType: mapOfMaps
-      - name: mapOfMapsRecursive
-        type:
-          namedType: mapOfMapsRecursive
-      - name: struct
-        type:
-          namedType: struct
-- name: struct
-  map:
-    fields:
-    - name: name
-      type:
-        scalar: string
-    - name: value
-      type:
-        scalar: number
-- name: listOfLists
-  list:
-    elementType:
-      map:
-        fields:
-        - name: name
-          type:
-            scalar: string
-        - name: value
-          type:
-            namedType: list
-    elementRelationship: associative
-    keys:
-    - name
-- name: list
-  list:
-    elementType:
-      scalar: string
-    elementRelationship: associative
-- name: listOfMaps
-  list:
-    elementType:
-      map:
-        fields:
-        - name: name
-          type:
-            scalar: string
-        - name: value
-          type:
-            namedType: map
-    elementRelationship: associative
-    keys:
-    - name
-- name: map
-  map:
-    elementType:
-      scalar: string
-    elementRelationship: associative
-- name: mapOfLists
-  map:
-    elementType:
-      namedType: list
-    elementRelationship: associative
-- name: mapOfMaps
-  map:
-    elementType:
-      namedType: map
-    elementRelationship: associative
-- name: mapOfMapsRecursive
-  map:
-    elementType:
-      namedType: mapOfMapsRecursive
-    elementRelationship: associative
-`
-
 var removeCases = []removeTestCase{{
 	name:         "simple pair",
 	rootTypeName: "stringPair",
 	schema:       typed.YAMLObject(simplePairSchema),
-	triplets: []removeTriplet{{
+	quadruplets: []removeQuadruplet{{
 		`{"key":"foo"}`,
 		_NS(_P("key")),
 		``,
@@ -329,7 +170,7 @@ var removeCases = []removeTestCase{{
 	name:         "struct grab bag",
 	rootTypeName: "myStruct",
 	schema:       typed.YAMLObject(structGrabBagSchema),
-	triplets: []removeTriplet{{
+	quadruplets: []removeQuadruplet{{
 		`{"setBool":[false]}`,
 		_NS(_P("setBool", _V(false))),
 		// is this the right remove output?
@@ -365,7 +206,7 @@ var removeCases = []removeTestCase{{
 	name:         "associative list",
 	rootTypeName: "myRoot",
 	schema:       typed.YAMLObject(associativeListSchema),
-	triplets: []removeTriplet{{
+	quadruplets: []removeQuadruplet{{
 		`{"list":[{"key":"a","id":1},{"key":"a","id":2},{"key":"b","id":1}]}`,
 		_NS(_P("list", _KBF("key", "a", "id", 1))),
 		`{"list":[{"key":"a","id":2},{"key":"b","id":1}]}`,
@@ -387,30 +228,6 @@ var removeCases = []removeTestCase{{
 		//	`{"list":null}`,
 		//	`{"list":[{"key":"a","id":1,"value":{"a":"a"}}]}`,
 	}},
-	//}, {
-	//	name:         "nested types",
-	//	rootTypeName: "myType",
-	//	schema:       typed.YAMLObject(nestedTypesSchema),
-	//	triplets: []removeTriplet{{
-	//		//`
-	//		//	listOfLists:
-	//		//	- name: a
-	//		//	  value:
-	//		//	  - b
-	//		//	  - c
-	//		//`,
-	//		`{"listOfLists":[{"name": "a", "value":["b", "c"]}]}`,
-	//		_NS(),
-	//		`{"listOfLists":[{"name": "a", "value":["b", "c"]}]}`,
-	//		``,
-	//	}, {
-	//		`{"listOfLists":[{"name": "a", "value":["b", "c"]}, {"name": "d"}]}`,
-	//		_NS(
-	//			_P("listsOfLists", _KBF("name", "d")),
-	//		),
-	//		`{"listOfLists":[{"name": "a", "value":["b", "c"]}]}`,
-	//		`{"listOfLists":[{"name": "d"}]}`,
-	//	}},
 }}
 
 func (tt removeTestCase) test(t *testing.T) {
@@ -419,47 +236,41 @@ func (tt removeTestCase) test(t *testing.T) {
 		t.Fatalf("failed to create schema: %v", err)
 	}
 
-	for i, triplet := range tt.triplets {
-		triplet := triplet
+	for i, quadruplet := range tt.quadruplets {
+		quadruplet := quadruplet
 		t.Run(fmt.Sprintf("%v-valid-%v", tt.name, i), func(t *testing.T) {
 			t.Parallel()
 			pt := parser.Type(tt.rootTypeName)
 
-			tv, err := pt.FromYAML(triplet.object)
+			tv, err := pt.FromYAML(quadruplet.object)
 			if err != nil {
-				t.Fatalf("unable to parser/validate lhs yaml: %v\n%v", err, triplet.object)
+				t.Fatalf("unable to parser/validate object yaml: %v\n%v", err, quadruplet.object)
 			}
-			fmt.Printf("tv:\n %v\n", value.ToString(tv.AsValue()))
 
-			// remove
-			fmt.Printf("STARTING REMOVE TEST: %v-valid-%v\n", tt.name, i)
-			out, err := pt.FromYAML(triplet.out)
-			if err != nil {
-				t.Fatalf("unable to parser/validate out yaml: %v\n%v", err, triplet.out)
-			}
-			fmt.Printf("out:\n %v\n", value.ToString(out.AsValue()))
-
-			set := triplet.set
+			set := quadruplet.set
 			if err != nil {
 				t.Errorf("set validation errors: %v", err)
 			}
-			got := tv.RemoveItems(set)
-			fmt.Printf("got %v\n", value.ToString(got.AsValue()))
-			if !value.Equals(got.AsValue(), out.AsValue()) {
+
+			// test RemoveItems
+			rmOut, err := pt.FromYAML(quadruplet.removeOutput)
+			if err != nil {
+				t.Fatalf("unable to parser/validate removeOutput yaml: %v\n%v", err, quadruplet.removeOutput)
+			}
+
+			rmGot := tv.RemoveItems(set)
+			if !value.Equals(rmGot.AsValue(), rmOut.AsValue()) {
 				t.Errorf("Expected\n%v\nbut got\n%v\n",
-					value.ToString(out.AsValue()), value.ToString(got.AsValue()),
+					value.ToString(rmOut.AsValue()), value.ToString(rmGot.AsValue()),
 				)
 			}
 
-			// extract
-			fmt.Printf("STARTING EXTRACT TEST: %v-valid-%v\n", tt.name, i)
-			exOut, err := pt.FromYAML(triplet.exOut)
+			// test ExtractItems
+			exOut, err := pt.FromYAML(quadruplet.extractOutput)
 			if err != nil {
-				t.Fatalf("unable to parser/validate out yaml: %v\n%v", err, triplet.exOut)
+				t.Fatalf("unable to parser/validate extractOutput yaml: %v\n%v", err, quadruplet.extractOutput)
 			}
-			//fmt.Printf("exOut:\n %v\n", value.ToString(exOut.AsValue()))
 			exGot := tv.ExtractItems(set)
-			fmt.Printf("exGot %v\n", value.ToString(exGot.AsValue()))
 			if !value.Equals(exGot.AsValue(), exOut.AsValue()) {
 				t.Errorf("Expected\n%v\nbut got\n%v\n",
 					value.ToString(exOut.AsValue()), value.ToString(exGot.AsValue()),

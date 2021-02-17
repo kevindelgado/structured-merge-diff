@@ -19,33 +19,38 @@ import (
 	"sigs.k8s.io/structured-merge-diff/v4/value"
 )
 
-type extractOrRemoveWalker struct {
-	value             value.Value
-	out               interface{}
-	schema            *schema.Schema
-	toExtractOrRemove *fieldpath.Set
-	allocator         value.Allocator
-	shouldExtract     bool
+type removingWalker struct {
+	value         value.Value
+	out           interface{}
+	schema        *schema.Schema
+	toRemove      *fieldpath.Set
+	allocator     value.Allocator
+	shouldExtract bool
 }
 
-func extractOrRemoveItemsWithSchema(val value.Value, toExtract *fieldpath.Set, schema *schema.Schema, typeRef schema.TypeRef, shouldExtract bool) value.Value {
-	w := &extractOrRemoveWalker{
-		value:             val,
-		schema:            schema,
-		toExtractOrRemove: toExtract,
-		allocator:         value.NewFreelistAllocator(),
-		shouldExtract:     shouldExtract,
+// removeItemsWithSchema with walk the given value and look for items form the toRemove set.
+// Depending on whether shouldExtract is set true or false, it will return a modified version
+// of the input value with either:
+// 1. only the items in the toRemove set (when shouldExtract is true) or
+// 2. the items from the toRemove set removed from the value (when shouldExtract is false).
+func removeItemsWithSchema(val value.Value, toRemove *fieldpath.Set, schema *schema.Schema, typeRef schema.TypeRef, shouldExtract bool) value.Value {
+	w := &removingWalker{
+		value:         val,
+		schema:        schema,
+		toRemove:      toRemove,
+		allocator:     value.NewFreelistAllocator(),
+		shouldExtract: shouldExtract,
 	}
 	resolveSchema(schema, typeRef, val, w)
 	return value.NewValueInterface(w.out)
 }
 
-func (w *extractOrRemoveWalker) doScalar(t *schema.Scalar) ValidationErrors {
+func (w *removingWalker) doScalar(t *schema.Scalar) ValidationErrors {
 	w.out = w.value.Unstructured()
 	return nil
 }
 
-func (w *extractOrRemoveWalker) doList(t *schema.List) (errs ValidationErrors) {
+func (w *removingWalker) doList(t *schema.List) (errs ValidationErrors) {
 	l := w.value.AsListUsing(w.allocator)
 	defer w.allocator.Free(l)
 	// If list is null, empty, or atomic just return
@@ -63,15 +68,15 @@ func (w *extractOrRemoveWalker) doList(t *schema.List) (errs ValidationErrors) {
 		path, _ := fieldpath.MakePath(pe)
 		// save items that do have the path when we shouldExtract
 		// but ignore it when we are removing (i.e. !w.shouldExtract)
-		if w.toExtractOrRemove.Has(path) {
+		if w.toRemove.Has(path) {
 			if w.shouldExtract {
 				newItems = append(newItems, item.Unstructured())
 			} else {
 				continue
 			}
 		}
-		if subset := w.toExtractOrRemove.WithPrefix(pe); !subset.Empty() {
-			item = extractOrRemoveItemsWithSchema(item, subset, w.schema, t.ElementType, w.shouldExtract)
+		if subset := w.toRemove.WithPrefix(pe); !subset.Empty() {
+			item = removeItemsWithSchema(item, subset, w.schema, t.ElementType, w.shouldExtract)
 		}
 		// save items that do not have the path only when removing (i.e. !w.shouldExtract)
 		if !w.shouldExtract {
@@ -84,7 +89,7 @@ func (w *extractOrRemoveWalker) doList(t *schema.List) (errs ValidationErrors) {
 	return nil
 }
 
-func (w *extractOrRemoveWalker) doMap(t *schema.Map) ValidationErrors {
+func (w *removingWalker) doMap(t *schema.Map) ValidationErrors {
 	m := w.value.AsMapUsing(w.allocator)
 	if m != nil {
 		defer w.allocator.Free(m)
@@ -103,7 +108,7 @@ func (w *extractOrRemoveWalker) doMap(t *schema.Map) ValidationErrors {
 	m.Iterate(func(k string, val value.Value) bool {
 		pe := fieldpath.PathElement{FieldName: &k}
 		path, _ := fieldpath.MakePath(pe)
-		hasPath := w.toExtractOrRemove.Has(path)
+		hasPath := w.toRemove.Has(path)
 		fieldType := t.ElementType
 		if ft, ok := fieldTypes[k]; ok {
 			fieldType = ft
@@ -114,8 +119,8 @@ func (w *extractOrRemoveWalker) doMap(t *schema.Map) ValidationErrors {
 			}
 			return true
 		}
-		if subset := w.toExtractOrRemove.WithPrefix(pe); !subset.Empty() {
-			val = extractOrRemoveItemsWithSchema(val, subset, w.schema, fieldType, w.shouldExtract)
+		if subset := w.toRemove.WithPrefix(pe); !subset.Empty() {
+			val = removeItemsWithSchema(val, subset, w.schema, fieldType, w.shouldExtract)
 		} else {
 			if w.shouldExtract {
 				return true
