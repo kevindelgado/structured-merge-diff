@@ -14,6 +14,8 @@ limitations under the License.
 package typed
 
 import (
+	"fmt"
+
 	"sigs.k8s.io/structured-merge-diff/v4/fieldpath"
 	"sigs.k8s.io/structured-merge-diff/v4/schema"
 	"sigs.k8s.io/structured-merge-diff/v4/value"
@@ -46,11 +48,13 @@ func removeItemsWithSchema(val value.Value, toRemove *fieldpath.Set, schema *sch
 }
 
 func (w *removingWalker) doScalar(t *schema.Scalar) ValidationErrors {
+	fmt.Println("doScalar")
 	w.out = w.value.Unstructured()
 	return nil
 }
 
 func (w *removingWalker) doList(t *schema.List) (errs ValidationErrors) {
+	fmt.Println("doList")
 	l := w.value.AsListUsing(w.allocator)
 	defer w.allocator.Free(l)
 	// If list is null, empty, or atomic just return
@@ -66,9 +70,12 @@ func (w *removingWalker) doList(t *schema.List) (errs ValidationErrors) {
 		// Ignore error because we have already validated this list
 		pe, _ := listItemToPathElement(w.allocator, w.schema, t, i, item)
 		path, _ := fieldpath.MakePath(pe)
+		fmt.Printf("pe = %+v\n", pe)
+		fmt.Printf("path = %+v\n", path)
 		// save items that do have the path when we shouldExtract
 		// but ignore it when we are removing (i.e. !w.shouldExtract)
 		if w.toRemove.Has(path) {
+			fmt.Println("hasPath")
 			if w.shouldExtract {
 				newItems = append(newItems, item.Unstructured())
 			} else {
@@ -76,6 +83,7 @@ func (w *removingWalker) doList(t *schema.List) (errs ValidationErrors) {
 			}
 		}
 		if subset := w.toRemove.WithPrefix(pe); !subset.Empty() {
+			fmt.Println("subset not empty")
 			item = removeItemsWithSchema(item, subset, w.schema, t.ElementType, w.shouldExtract)
 		}
 		// save items that do not have the path only when removing (i.e. !w.shouldExtract)
@@ -86,10 +94,12 @@ func (w *removingWalker) doList(t *schema.List) (errs ValidationErrors) {
 	if len(newItems) > 0 {
 		w.out = newItems
 	}
+	fmt.Printf("w.out = %+v\n", w.out)
 	return nil
 }
 
 func (w *removingWalker) doMap(t *schema.Map) ValidationErrors {
+	fmt.Println("doMap")
 	m := w.value.AsMapUsing(w.allocator)
 	if m != nil {
 		defer w.allocator.Free(m)
@@ -112,16 +122,21 @@ func (w *removingWalker) doMap(t *schema.Map) ValidationErrors {
 		if ft, ok := fieldTypes[k]; ok {
 			fieldType = ft
 		}
+		fmt.Printf("pe = %+v\n", pe)
+		fmt.Printf("path = %+v\n", path)
 		// save items on the path only when extracting.
 		if w.toRemove.Has(path) {
+			fmt.Println("hasPath")
 			if w.shouldExtract {
 				newMap[k] = val.Unstructured()
 			}
 			return true
 		}
 		if subset := w.toRemove.WithPrefix(pe); !subset.Empty() {
+			fmt.Println("subset not empty")
 			val = removeItemsWithSchema(val, subset, w.schema, fieldType, w.shouldExtract)
 		} else {
+			fmt.Println("subset IS empty")
 			// don't save items not on the path when extracting.
 			if w.shouldExtract {
 				return true
@@ -133,5 +148,6 @@ func (w *removingWalker) doMap(t *schema.Map) ValidationErrors {
 	if len(newMap) > 0 {
 		w.out = newMap
 	}
+	fmt.Printf("w.out = %+v\n", w.out)
 	return nil
 }

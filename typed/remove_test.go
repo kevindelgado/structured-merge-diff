@@ -142,7 +142,7 @@ var associativeListSchema = `types:
 `
 
 var nestedTypesSchema = `types:
-- name: myType
+- name: type
   map:
     fields:
       - name: listOfLists
@@ -228,90 +228,122 @@ var nestedTypesSchema = `types:
 `
 
 var removeCases = []removeTestCase{{
-	name:         "simple pair",
-	rootTypeName: "stringPair",
-	schema:       typed.YAMLObject(simplePairSchema),
-	quadruplets: []removeQuadruplet{{
-		`{"key":"foo"}`,
-		_NS(_P("key")),
-		``,
-		`{"key":"foo"}`,
-	}, {
-		`{"key":"foo"}`,
-		_NS(),
-		`{"key":"foo"}`,
-		``,
-	}, {
-		`{"key":"foo","value":true}`,
-		_NS(_P("key")),
-		`{"value":true}`,
-		`{"key":"foo"}`,
-	}, {
-		`{"key":"foo","value":{"a": "b"}}`,
-		_NS(_P("value")),
-		`{"key":"foo"}`,
-		`{"value":{"a": "b"}}`,
-	}},
-}, {
-	name:         "struct grab bag",
-	rootTypeName: "myStruct",
-	schema:       typed.YAMLObject(structGrabBagSchema),
-	quadruplets: []removeQuadruplet{{
-		`{"setBool":[false]}`,
-		_NS(_P("setBool", _V(false))),
-		// is this the right remove output?
-		`{"setBool":null}`,
-		`{"setBool":[false]}`,
-	}, {
-		`{"setBool":[false]}`,
-		_NS(_P("setBool", _V(true))),
-		`{"setBool":[false]}`,
-		`{"setBool":null}`,
-	}, {
-		`{"setBool":[true,false]}`,
-		_NS(_P("setBool", _V(true))),
-		`{"setBool":[false]}`,
-		`{"setBool":[true]}`,
-	}, {
-		`{"setBool":[true,false]}`,
-		_NS(_P("setBool")),
-		``,
-		`{"setBool":[true,false]}`,
-	}, {
-		`{"setNumeric":[1,2,3,4.5]}`,
-		_NS(_P("setNumeric", _V(1)), _P("setNumeric", _V(4.5))),
-		`{"setNumeric":[2,3]}`,
-		`{"setNumeric":[1,4.5]}`,
-	}, {
-		`{"setStr":["a","b","c"]}`,
-		_NS(_P("setStr", _V("a"))),
-		`{"setStr":["b","c"]}`,
-		`{"setStr":["a"]}`,
-	}},
-}, {
-	name:         "associative list",
-	rootTypeName: "myRoot",
-	schema:       typed.YAMLObject(associativeListSchema),
-	quadruplets: []removeQuadruplet{{
-		`{"list":[{"key":"a","id":1},{"key":"a","id":2},{"key":"b","id":1}]}`,
-		_NS(_P("list", _KBF("key", "a", "id", 1))),
-		`{"list":[{"key":"a","id":2},{"key":"b","id":1}]}`,
-		`{"list":[{"key":"a","id":1}]}`,
-	}, {
-		`{"atomicList":["a", "a", "a"]}`,
-		_NS(_P("atomicList")),
-		``,
-		`{"atomicList":["a", "a", "a"]}`,
-	}},
-}, {
+	//	name:         "simple pair",
+	//	rootTypeName: "stringPair",
+	//	schema:       typed.YAMLObject(simplePairSchema),
+	//	quadruplets: []removeQuadruplet{{
+	//		`{"key":"foo"}`,
+	//		_NS(_P("key")),
+	//		``,
+	//		`{"key":"foo"}`,
+	//	}, {
+	//		`{"key":"foo"}`,
+	//		_NS(),
+	//		`{"key":"foo"}`,
+	//		``,
+	//	}, {
+	//		`{"key":"foo","value":true}`,
+	//		_NS(_P("key")),
+	//		`{"value":true}`,
+	//		`{"key":"foo"}`,
+	//	}, {
+	//		`{"key":"foo","value":{"a": "b"}}`,
+	//		_NS(_P("value")),
+	//		`{"key":"foo"}`,
+	//		`{"value":{"a": "b"}}`,
+	//	}},
+	//}, {
+	//	name:         "struct grab bag",
+	//	rootTypeName: "myStruct",
+	//	schema:       typed.YAMLObject(structGrabBagSchema),
+	//	quadruplets: []removeQuadruplet{{
+	//		`{"setBool":[false]}`,
+	//		_NS(_P("setBool", _V(false))),
+	//		// is this the right remove output?
+	//		`{"setBool":null}`,
+	//		`{"setBool":[false]}`,
+	//	}, {
+	//		`{"setBool":[false]}`,
+	//		_NS(_P("setBool", _V(true))),
+	//		`{"setBool":[false]}`,
+	//		`{"setBool":null}`,
+	//	}, {
+	//		`{"setBool":[true,false]}`,
+	//		_NS(_P("setBool", _V(true))),
+	//		`{"setBool":[false]}`,
+	//		`{"setBool":[true]}`,
+	//	}, {
+	//		`{"setBool":[true,false]}`,
+	//		_NS(_P("setBool")),
+	//		``,
+	//		`{"setBool":[true,false]}`,
+	//	}, {
+	//		`{"setNumeric":[1,2,3,4.5]}`,
+	//		_NS(_P("setNumeric", _V(1)), _P("setNumeric", _V(4.5))),
+	//		`{"setNumeric":[2,3]}`,
+	//		`{"setNumeric":[1,4.5]}`,
+	//	}, {
+	//		`{"setStr":["a","b","c"]}`,
+	//		_NS(_P("setStr", _V("a"))),
+	//		`{"setStr":["b","c"]}`,
+	//		`{"setStr":["a"]}`,
+	//	}},
+	//}, {
+	//	name:         "associative list",
+	//	rootTypeName: "myRoot",
+	//	schema:       typed.YAMLObject(associativeListSchema),
+	//	quadruplets: []removeQuadruplet{{
+	//		`{"list":[{"key":"a","id":1},{"key":"a","id":2},{"key":"b","id":1}]}`,
+	//		_NS(_P("list", _KBF("key", "a", "id", 1))),
+	//		`{"list":[{"key":"a","id":2},{"key":"b","id":1}]}`,
+	//		`{"list":[{"key":"a","id":1}]}`,
+	//	}, {
+	//		`{"atomicList":["a", "a", "a"]}`,
+	//		_NS(_P("atomicList")),
+	//		``,
+	//		`{"atomicList":["a", "a", "a"]}`,
+	//	}},
+	//}, {
 	name:         "nested types",
-	rootTypeName: "myType",
+	rootTypeName: "type",
 	schema:       typed.YAMLObject(nestedTypesSchema),
 	quadruplets: []removeQuadruplet{{
 		`{"listOfLists": [{"name": "a", "value": ["b", "c"]}, {"name": "d"}]}`,
 		_NS(_P("listOfLists", _KBF("name", "d"))),
 		`{"listOfLists": [{"name": "a", "value": ["b", "c"]}]}`,
+		`{"listOfLists": [{"name": "d"}]}`, // double check
+	}, {
+		`{"listOfLists": [{"name": "a", "value": ["b", "c"]}, {"name": "d"}]}`,
+		_NS(
+			_P("listOfLists", _KBF("name", "a")),
+		),
 		`{"listOfLists": [{"name": "d"}]}`,
+		`{"listOfLists": [{"name": "a", "value": ["b", "c"]}]}`, // double check
+	}, {
+		`{"listOfLists": [{"name": "a", "value": ["b", "c"]}, {"name": "d"}]}`,
+		_NS(
+			_P(_V("b")),
+			// this doesn't do anything, confirm no regression
+			// other tests that don't remove anything:
+			//_P(_KBF("name", "a")),
+		),
+		`{"listOfLists": [{"name": "a", "value": ["b", "c"]}, {"name": "d"}]}`,
+		`{"listOfLists": [{"name": "a", "value": ["b"]}]}`, // double check
+	}, {
+		`{"listOfLists": [{"name": "a", "value": ["b", "c"]}, {"name": "d"}]}`,
+		_NS(
+			//_P("listOfLists", _KBF("name", "a"), "name"), // this is a broken test case (remove works, but returns an invalid value I think b/c it can't be re-converted into a pathset)
+			_P("listOfLists", _KBF("name", "a"), "value", _V("b")),
+		),
+		`{"listOfLists": [{"name": "a", "value": ["c"]}, {"name": "d"}]}`,
+		`{"listOfLists": [{"name": "a", "value": ["b"]}]}`, // double check
+	}, {
+		`{"listOfLists": [{"name": "a", "value": ["b", "c"]}, {"name": "d"}]}`,
+		_NS(
+			_P("listOfLists"),
+		),
+		``,
+		`{"listOfLists": [{"name": "a", "value": ["b", "c"]}, {"name": "d"}]}`, // should work
 	}},
 }}
 
@@ -323,13 +355,21 @@ func (tt removeTestCase) test(t *testing.T) {
 
 	for i, quadruplet := range tt.quadruplets {
 		quadruplet := quadruplet
-		t.Run(fmt.Sprintf("%v-valid-%v", tt.name, i), func(t *testing.T) {
-			t.Parallel()
+		tc := fmt.Sprintf("%v-valid-%v", tt.name, i)
+		t.Run(tc, func(t *testing.T) {
+			fmt.Printf("tc = %+v\n", tc)
+			// uncomment once done testing
+			//t.Parallel()
 			pt := parser.Type(tt.rootTypeName)
 
 			tv, err := pt.FromYAML(quadruplet.object)
 			if err != nil {
 				t.Fatalf("unable to parser/validate object yaml: %v\n%v", err, quadruplet.object)
+			}
+
+			set := quadruplet.set
+			if err != nil {
+				t.Errorf("set validation errors: %v", err)
 			}
 
 			// test RemoveItems
@@ -338,24 +378,45 @@ func (tt removeTestCase) test(t *testing.T) {
 				t.Fatalf("unable to parser/validate removeOutput yaml: %v\n%v", err, quadruplet.removeOutput)
 			}
 
-			rmGot := tv.RemoveItems(quadruplet.set)
+			// DEBUGGING
+			fs, err := rmOut.ToFieldSet()
+			_ = fs
+
+			rmGot := tv.RemoveItems(set)
+
+			setBytes, err := set.ToJSON()
+			if err != nil {
+				t.Fatalf("setBytes err %v", err)
+			}
+			fmt.Printf("setBytes = %+v\n", string(setBytes))
+
+			rmGotFS, err := rmGot.ToFieldSet()
+			if err != nil {
+				t.Fatalf("rmGotFS err %v", err)
+			}
+			rmGotBytes, err := rmGotFS.ToJSON()
+			if err != nil {
+				t.Fatalf("rmGotBytes err %v", err)
+			}
+			fmt.Printf("string(rmGotBytes = %+v\n", string(rmGotBytes))
+
 			if !value.Equals(rmGot.AsValue(), rmOut.AsValue()) {
-				t.Errorf("Expected\n%v\nbut got\n%v\n",
+				t.Errorf("RemoveItems expected\n%v\nbut got\n%v\n",
 					value.ToString(rmOut.AsValue()), value.ToString(rmGot.AsValue()),
 				)
 			}
 
-			// test ExtractItems
-			exOut, err := pt.FromYAML(quadruplet.extractOutput)
-			if err != nil {
-				t.Fatalf("unable to parser/validate extractOutput yaml: %v\n%v", err, quadruplet.extractOutput)
-			}
-			exGot := tv.ExtractItems(quadruplet.set)
-			if !value.Equals(exGot.AsValue(), exOut.AsValue()) {
-				t.Errorf("Expected\n%v\nbut got\n%v\n",
-					value.ToString(exOut.AsValue()), value.ToString(exGot.AsValue()),
-				)
-			}
+			//// test ExtractItems
+			//exOut, err := pt.FromYAML(quadruplet.extractOutput)
+			//if err != nil {
+			//	t.Fatalf("unable to parser/validate extractOutput yaml: %v\n%v", err, quadruplet.extractOutput)
+			//}
+			//exGot := tv.ExtractItems(set)
+			//if !value.Equals(exGot.AsValue(), exOut.AsValue()) {
+			//	t.Errorf("ExtractItems expected\n%v\nbut got\n%v\n",
+			//		value.ToString(exOut.AsValue()), value.ToString(exGot.AsValue()),
+			//	)
+			//}
 		})
 	}
 }
