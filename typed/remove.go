@@ -54,6 +54,9 @@ func (w *removingWalker) doScalar(t *schema.Scalar) ValidationErrors {
 }
 
 func (w *removingWalker) doList(t *schema.List) (errs ValidationErrors) {
+	if w.shouldExtract {
+		fmt.Println("extract list")
+	}
 	fmt.Println("doList")
 	l := w.value.AsListUsing(w.allocator)
 	defer w.allocator.Free(l)
@@ -67,10 +70,11 @@ func (w *removingWalker) doList(t *schema.List) (errs ValidationErrors) {
 	defer w.allocator.Free(iter)
 	for iter.Next() {
 		i, item := iter.Item()
+		fmt.Printf("list i = %+v\n", i)
+		fmt.Printf("iter item.Unstructured() = %+v\n", item.Unstructured())
 		// Ignore error because we have already validated this list
 		pe, _ := listItemToPathElement(w.allocator, w.schema, t, i, item)
 		path, _ := fieldpath.MakePath(pe)
-		fmt.Printf("pe = %+v\n", pe)
 		fmt.Printf("path = %+v\n", path)
 		// save items that do have the path when we shouldExtract
 		// but ignore it when we are removing (i.e. !w.shouldExtract)
@@ -78,27 +82,46 @@ func (w *removingWalker) doList(t *schema.List) (errs ValidationErrors) {
 			fmt.Println("hasPath")
 			if w.shouldExtract {
 				newItems = append(newItems, item.Unstructured())
+				fmt.Printf("item.Unstructured() = %+v\n", item.Unstructured())
+				fmt.Printf("newItems = %+v\n", newItems)
 			} else {
 				continue
 			}
+		} else {
+			fmt.Println("noPath")
 		}
+
 		if subset := w.toRemove.WithPrefix(pe); !subset.Empty() {
 			fmt.Println("subset not empty")
+
 			item = removeItemsWithSchema(item, subset, w.schema, t.ElementType, w.shouldExtract)
+			fmt.Printf("subitem item.Unstructured() = %+v\n", item.Unstructured())
+			// new code
+			//if w.shouldExtract {
+			//	// we need to store the item with the parent here
+			//	newItems = append(newItems,  item.Unstructured())
+			//}
+			// end new
 		}
 		// save items that do not have the path only when removing (i.e. !w.shouldExtract)
 		if !w.shouldExtract {
 			newItems = append(newItems, item.Unstructured())
+			fmt.Printf("!!list newItems = %+v\n", newItems)
 		}
 	}
+	fmt.Printf("len(newItems) = %+v\n", len(newItems))
+	fmt.Printf("pre list w.out = %+v\n", w.out)
 	if len(newItems) > 0 {
 		w.out = newItems
 	}
-	fmt.Printf("w.out = %+v\n", w.out)
+	fmt.Printf("list w.out = %+v\n", w.out)
 	return nil
 }
 
 func (w *removingWalker) doMap(t *schema.Map) ValidationErrors {
+	if w.shouldExtract {
+		fmt.Println("extract map")
+	}
 	fmt.Println("doMap")
 	m := w.value.AsMapUsing(w.allocator)
 	if m != nil {
@@ -115,26 +138,34 @@ func (w *removingWalker) doMap(t *schema.Map) ValidationErrors {
 	}
 
 	newMap := map[string]interface{}{}
+	i := -1
 	m.Iterate(func(k string, val value.Value) bool {
+		i++
+		fmt.Printf("map i = %+v\n", i)
+		fmt.Printf("k = %+v\n", k)
+		fmt.Printf("iter val.Unstructured() = %+v\n", val.Unstructured())
 		pe := fieldpath.PathElement{FieldName: &k}
 		path, _ := fieldpath.MakePath(pe)
 		fieldType := t.ElementType
 		if ft, ok := fieldTypes[k]; ok {
 			fieldType = ft
 		}
-		fmt.Printf("pe = %+v\n", pe)
 		fmt.Printf("path = %+v\n", path)
 		// save items on the path only when extracting.
 		if w.toRemove.Has(path) {
 			fmt.Println("hasPath")
 			if w.shouldExtract {
 				newMap[k] = val.Unstructured()
+				fmt.Printf("k = %+v\n", k)
+				fmt.Printf("val.Unstrutured = %+v\n", val.Unstructured())
+				fmt.Printf("newMap = %+v\n", newMap)
 			}
 			return true
 		}
 		if subset := w.toRemove.WithPrefix(pe); !subset.Empty() {
 			fmt.Println("subset not empty")
 			val = removeItemsWithSchema(val, subset, w.schema, fieldType, w.shouldExtract)
+			fmt.Printf("NOT EMPTY val.Unstructured() = %+v\n", val.Unstructured())
 		} else {
 			fmt.Println("subset IS empty")
 			// don't save items not on the path when extracting.
@@ -143,11 +174,15 @@ func (w *removingWalker) doMap(t *schema.Map) ValidationErrors {
 			}
 		}
 		newMap[k] = val.Unstructured()
+		fmt.Printf("final k = %+v\n", k)
+		fmt.Printf("final val.Unstrutured = %+v\n", val.Unstructured())
+		fmt.Printf("final newMap = %+v\n", newMap)
 		return true
 	})
+	fmt.Printf("pre map w.out = %+v\n", w.out)
 	if len(newMap) > 0 {
 		w.out = newMap
 	}
-	fmt.Printf("w.out = %+v\n", w.out)
+	fmt.Printf("map w.out = %+v\n", w.out)
 	return nil
 }

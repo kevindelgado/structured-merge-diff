@@ -308,42 +308,134 @@ var removeCases = []removeTestCase{{
 	rootTypeName: "type",
 	schema:       typed.YAMLObject(nestedTypesSchema),
 	quadruplets: []removeQuadruplet{{
-		`{"listOfLists": [{"name": "a", "value": ["b", "c"]}, {"name": "d"}]}`,
-		_NS(_P("listOfLists", _KBF("name", "d"))),
-		`{"listOfLists": [{"name": "a", "value": ["b", "c"]}]}`,
-		`{"listOfLists": [{"name": "d"}]}`, // double check
-	}, {
-		`{"listOfLists": [{"name": "a", "value": ["b", "c"]}, {"name": "d"}]}`,
+		//	`{"listOfLists": [{"name": "a", "value": ["b", "c"]}, {"name": "d"}]}`,
+		//	_NS(_P("listOfLists", _KBF("name", "d"))),
+		//	`{"listOfLists": [{"name": "a", "value": ["b", "c"]}]}`,
+		//	`{"listOfLists": [{"name": "d"}]}`,
+		//}, {
+		//	`{"listOfLists": [{"name": "a", "value": ["b", "c"]}, {"name": "d"}]}`,
+		//	_NS(
+		//		_P("listOfLists", _KBF("name", "a")),
+		//	),
+		//	`{"listOfLists": [{"name": "d"}]}`,
+		//	`{"listOfLists": [{"name": "a", "value": ["b", "c"]}]}`,
+		//}, {
+		//	`{"listOfLists": [{"name": "a", "value": ["b", "c"]}, {"name": "d"}]}`,
+		//	_NS(
+		//		// invalid pathset, won't remove anything
+		//		_P(_V("b")),
+		//		// this also doesn't do anything, confirm no regression
+		//		// other tests that don't remove anything:
+		//		//_P(_KBF("name", "a")),
+		//	),
+		//	`{"listOfLists": [{"name": "a", "value": ["b", "c"]}, {"name": "d"}]}`,
+		//	``, // double check
+		//}, {
+		//	//`{"listOfLists": [{"name": "a", "value": ["b", "c"]}, {"name": "d"}]}`,
+		//	//_NS(
+		//	//	_P("listOfLists", _KBF("name", "a"), "value", _V("b")),
+		//	//),
+		//	//`{"listOfLists": [{"name": "a", "value": ["c"]}, {"name": "d"}]}`,
+		//	//`{"listOfLists": [{"name": "a", "value": ["b"]}]}`, // failing
+		//	//}, {
+		//	`{"listOfLists": [{"name": "a", "value": ["b", "c"]}, {"name": "d"}]}`,
+		//	_NS(
+		//		_P("listOfLists"),
+		//	),
+		//	``,
+		//	`{"listOfLists": [{"name": "a", "value": ["b", "c"]}, {"name": "d"}]}`,
+		//}, {
+		//	`{"listOfMaps": [{"name": "a", "value": {"b":"x", "c":"y"}}, {"name": "d", "value": {"e":"z"}}]}`,
+		//	_NS(
+		//		_P("listOfMaps"),
+		//	),
+		//	``,
+		//	`{"listOfMaps": [{"name": "a", "value": {"b":"x", "c":"y"}}, {"name": "d", "value": {"e":"z"}}]}`,
+		//}, {
+		//	`{"listOfMaps": [{"name": "a", "value": {"b":"x", "c":"y"}}, {"name": "d", "value": {"e":"z"}}]}`,
+		//	_NS(
+		//		_P("listOfMaps", _KBF("name", "a")),
+		//	),
+		//	`{"listOfMaps": [{"name": "d", "value": {"e":"z"}}]}`,
+		//	`{"listOfMaps": [{"name": "a", "value": {"b":"x", "c":"y"}}]}`,
+		//}, {
+		`{"listOfMaps": [{"name": "a", "value": {"b":"x", "c":"y"}}, {"name": "d", "value": {"e":"z"}}]}`,
 		_NS(
-			_P("listOfLists", _KBF("name", "a")),
+			_P("listOfMaps", _KBF("name", "a"), "value", "b"),
 		),
-		`{"listOfLists": [{"name": "d"}]}`,
-		`{"listOfLists": [{"name": "a", "value": ["b", "c"]}]}`, // double check
-	}, {
-		`{"listOfLists": [{"name": "a", "value": ["b", "c"]}, {"name": "d"}]}`,
-		_NS(
-			_P(_V("b")),
-			// this doesn't do anything, confirm no regression
-			// other tests that don't remove anything:
-			//_P(_KBF("name", "a")),
-		),
-		`{"listOfLists": [{"name": "a", "value": ["b", "c"]}, {"name": "d"}]}`,
-		`{"listOfLists": [{"name": "a", "value": ["b"]}]}`, // double check
-	}, {
-		`{"listOfLists": [{"name": "a", "value": ["b", "c"]}, {"name": "d"}]}`,
-		_NS(
-			//_P("listOfLists", _KBF("name", "a"), "name"), // this is a broken test case (remove works, but returns an invalid value I think b/c it can't be re-converted into a pathset)
-			_P("listOfLists", _KBF("name", "a"), "value", _V("b")),
-		),
-		`{"listOfLists": [{"name": "a", "value": ["c"]}, {"name": "d"}]}`,
-		`{"listOfLists": [{"name": "a", "value": ["b"]}]}`, // double check
-	}, {
-		`{"listOfLists": [{"name": "a", "value": ["b", "c"]}, {"name": "d"}]}`,
-		_NS(
-			_P("listOfLists"),
-		),
-		``,
-		`{"listOfLists": [{"name": "a", "value": ["b", "c"]}, {"name": "d"}]}`, // should work
+		`{"listOfMaps": [{"name": "a", "value": {"c":"y"}}, {"name": "d", "value": {"e":"z"}}]}`,
+		`{"listOfMaps": [{"name": "a", "value": {"b":"x"}}]}`, // failing
+		//}, {
+		//	`{"mapOfLists": {"b":["a","c"]}}`,
+		//	_NS(
+		//		_P("mapOfLists"),
+		//	),
+		//	``,
+		//	`{"mapOfLists": {"b":["a","c"]}}`,
+		//}, {
+		//	`{"mapOfLists": {"b":["a","c"]}}`,
+		//	_NS(
+		//		_P("mapOfLists", "b"),
+		//	),
+		//	`{"mapOfLists"}`,
+		//	`{"mapOfLists": {"b":["a","c"]}}`,
+		//}, {
+		//	`{"mapOfLists": {"b":["a","c"]}}`,
+		//	_NS(
+		//		_P("mapOfLists", "b", _V("a")),
+		//	),
+		//	`{"mapOfLists":{"b":["c"]}}`,
+		//	`{"mapOfLists":{"b":["a"]}}`,
+		//}, {
+		//	`{"mapOfLists": {"b":["a","c"], "d":["x", "y"]}}`,
+		//	_NS(
+		//		_P("mapOfLists", "b", _V("a")),
+		//		_P("mapOfLists", "d", _V("x")),
+		//	),
+		//	`{"mapOfLists":{"b":["c"], "d":["y"]}}`,
+		//	`{"mapOfLists":{"b":["a"], "d":["x"]}}`,
+		//}, {
+		//	`{"mapOfMaps": {"b":{"a":"x","c":"z"}}}`,
+		//	_NS(
+		//		_P("mapOfMaps"),
+		//	),
+		//	``,
+		//	`{"mapOfMaps": {"b":{"a":"x","c":"z"}}}`,
+		//}, {
+		//	`{"mapOfMaps": {"b":{"a":"x","c":"z"}, "d":{"e":"y"}}}`,
+		//	_NS(
+		//		_P("mapOfMaps", "b"),
+		//	),
+		//	`{"mapOfMaps": {"d":{"e":"y"}}}`,
+		//	`{"mapOfMaps": {"b":{"a":"x","c":"z"}}}`,
+		//}, {
+		//	`{"mapOfMaps": {"b":{"a":"x","c":"z"}, "d":{"e":"y"}}}`,
+		//	_NS(
+		//		_P("mapOfMaps", "b", "a"),
+		//	),
+		//	`{"mapOfMaps": {"b":{"c":"z"}, "d":{"e":"y"}}}`,
+		//	`{"mapOfMaps": {"b":{"a":"x"}}}`,
+		//}, {
+		//	`{"mapOfMapsRecursive": {"a":{"b":{"c":null}}}}`,
+		//	_NS(
+		//		_P("mapOfMapsRecursive"),
+		//	),
+		//	``,
+		//	`{"mapOfMapsRecursive": {"a":{"b":{"c":null}}}}`,
+		//}, {
+		//	`{"mapOfMapsRecursive": {"a":{"b":{"c":null}}}}`,
+		//	_NS(
+		//		_P("mapOfMapsRecursive", "a"),
+		//	),
+		//	`{"mapOfMapsRecursive"}`,
+		//	`{"mapOfMapsRecursive": {"a":{"b":{"c":null}}}}`,
+		//}, {
+		//	`{"mapOfMapsRecursive": {"a":{"b":{"c":null}}}}`,
+		//	_NS(
+		//		_P("mapOfMapsRecursive", "a", "b"),
+		//	),
+		//	`{"mapOfMapsRecursive":{"a":null}}`,
+		//	`{"mapOfMapsRecursive": {"a":{"b":{"c":null}}}}`,
 	}},
 }}
 
@@ -357,7 +449,7 @@ func (tt removeTestCase) test(t *testing.T) {
 		quadruplet := quadruplet
 		tc := fmt.Sprintf("%v-valid-%v", tt.name, i)
 		t.Run(tc, func(t *testing.T) {
-			fmt.Printf("tc = %+v\n", tc)
+			//fmt.Printf("tc = %+v\n", tc)
 			// uncomment once done testing
 			//t.Parallel()
 			pt := parser.Type(tt.rootTypeName)
@@ -381,42 +473,43 @@ func (tt removeTestCase) test(t *testing.T) {
 			// DEBUGGING
 			fs, err := rmOut.ToFieldSet()
 			_ = fs
+			//
 
 			rmGot := tv.RemoveItems(set)
-
-			setBytes, err := set.ToJSON()
-			if err != nil {
-				t.Fatalf("setBytes err %v", err)
-			}
-			fmt.Printf("setBytes = %+v\n", string(setBytes))
-
-			rmGotFS, err := rmGot.ToFieldSet()
-			if err != nil {
-				t.Fatalf("rmGotFS err %v", err)
-			}
-			rmGotBytes, err := rmGotFS.ToJSON()
-			if err != nil {
-				t.Fatalf("rmGotBytes err %v", err)
-			}
-			fmt.Printf("string(rmGotBytes = %+v\n", string(rmGotBytes))
-
 			if !value.Equals(rmGot.AsValue(), rmOut.AsValue()) {
 				t.Errorf("RemoveItems expected\n%v\nbut got\n%v\n",
 					value.ToString(rmOut.AsValue()), value.ToString(rmGot.AsValue()),
 				)
 			}
 
-			//// test ExtractItems
-			//exOut, err := pt.FromYAML(quadruplet.extractOutput)
-			//if err != nil {
-			//	t.Fatalf("unable to parser/validate extractOutput yaml: %v\n%v", err, quadruplet.extractOutput)
-			//}
-			//exGot := tv.ExtractItems(set)
-			//if !value.Equals(exGot.AsValue(), exOut.AsValue()) {
-			//	t.Errorf("ExtractItems expected\n%v\nbut got\n%v\n",
-			//		value.ToString(exOut.AsValue()), value.ToString(exGot.AsValue()),
-			//	)
-			//}
+			// test ExtractItems
+			exOut, err := pt.FromYAML(quadruplet.extractOutput)
+			if err != nil {
+				t.Fatalf("unable to parser/validate extractOutput yaml: %v\n%v", err, quadruplet.extractOutput)
+			}
+			exGot := tv.ExtractItems(set)
+			// DEBUGGING
+			setBytes, err := set.ToJSON()
+			if err != nil {
+				t.Fatalf("setBytes err %v", err)
+			}
+			fmt.Printf("setBytes = %+v\n", string(setBytes))
+
+			exOutFS, err := exOut.ToFieldSet()
+			if err != nil {
+				t.Fatalf("exOutFS err %v", err)
+			}
+			exOutBytes, err := exOutFS.ToJSON()
+			if err != nil {
+				t.Fatalf("exOutBytes err %v", err)
+			}
+			fmt.Printf("outBytes = %+v\n", string(exOutBytes))
+			//
+			if !value.Equals(exGot.AsValue(), exOut.AsValue()) {
+				t.Errorf("ExtractItems expected\n%v\nbut got\n%v\n",
+					value.ToString(exOut.AsValue()), value.ToString(exGot.AsValue()),
+				)
+			}
 		})
 	}
 }
