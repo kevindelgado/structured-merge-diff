@@ -593,11 +593,8 @@ func (tt removeTestCase) test(t *testing.T) {
 
 	for i, quadruplet := range tt.quadruplets {
 		quadruplet := quadruplet
-		tc := fmt.Sprintf("%v-valid-%v", tt.name, i)
-		t.Run(tc, func(t *testing.T) {
-			//fmt.Printf("tc = %+v\n", tc)
-			// uncomment once done testing
-			//t.Parallel()
+		t.Run(fmt.Sprintf("%v-valid-%v", tt.name, i), func(t *testing.T) {
+			t.Parallel()
 			pt := parser.Type(tt.rootTypeName)
 
 			tv, err := pt.FromYAML(quadruplet.object)
@@ -605,20 +602,14 @@ func (tt removeTestCase) test(t *testing.T) {
 				t.Fatalf("unable to parser/validate object yaml: %v\n%v", err, quadruplet.object)
 			}
 
-			set := quadruplet.set
-			if err != nil {
-				t.Errorf("set validation errors: %v", err)
-			}
-
 			// test RemoveItems
-			fmt.Println("test RemoveItems")
 			if quadruplet.removeOutput != "unparseable" {
 				rmOut, err := pt.FromYAML(quadruplet.removeOutput)
 				if err != nil {
 					t.Fatalf("unable to parser/validate removeOutput yaml: %v\n%v", err, quadruplet.removeOutput)
 				}
 
-				rmGot := tv.RemoveItems(set)
+				rmGot := tv.RemoveItems(quadruplet.set)
 				if !value.Equals(rmGot.AsValue(), rmOut.AsValue()) {
 					t.Errorf("RemoveItems expected\n%v\nbut got\n%v\n",
 						value.ToString(rmOut.AsValue()), value.ToString(rmGot.AsValue()),
@@ -627,42 +618,12 @@ func (tt removeTestCase) test(t *testing.T) {
 			}
 
 			// test ExtractItems
-			fmt.Println("---------------------")
 			if quadruplet.extractOutput != "unparseable" {
-				fmt.Println("test ExtractItems")
 				exOut, err := pt.FromYAML(quadruplet.extractOutput)
 				if err != nil {
 					t.Fatalf("unable to parser/validate extractOutput yaml: %v\n%v", err, quadruplet.extractOutput)
 				}
-				exGot := tv.ExtractItems(set)
-				//// DEBUGGING
-				//setBytes, err := set.ToJSON()
-				//if err != nil {
-				//	t.Fatalf("setBytes err %v", err)
-				//}
-				//fmt.Printf("setBytes = %+v\n", string(setBytes))
-
-				exOutFS, err := exOut.ToFieldSet()
-				if err != nil {
-					t.Fatalf("exOutFS err %v", err)
-				}
-				exOutBytes, err := exOutFS.ToJSON()
-				if err != nil {
-					t.Fatalf("exOutBytes err %v", err)
-				}
-				fmt.Printf("outBytes = %+v\n", string(exOutBytes))
-				// broken because you cant go from json to yaml string
-				//exOutYAML, err := k8syaml.JSONToYAML(exOutBytes)
-				//if err != nil {
-				//	t.Fatalf("exOutYAML err %v", err)
-				//}
-				//exOut2, err := pt.FromYAML(typed.YAMLObject(string(exOutYAML)))
-				//if err != nil {
-				//	t.Fatalf("exOut2 eer %v", err)
-				//}
-				//fmt.Printf("value.ToString(exOut2.AsValue() = %+v\n", value.ToString(exOut2.AsValue()))
-
-				////
+				exGot := tv.ExtractItems(quadruplet.set)
 				if !value.Equals(exGot.AsValue(), exOut.AsValue()) {
 					t.Errorf("ExtractItems expected\n%v\nbut got\n%v\n",
 						value.ToString(exOut.AsValue()), value.ToString(exGot.AsValue()),
