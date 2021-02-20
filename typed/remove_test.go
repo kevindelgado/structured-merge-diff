@@ -344,7 +344,7 @@ var removeCases = []removeTestCase{{
 			_P("listOfLists", _KBF("name", "a"), "name"),
 			_P("listOfLists", _KBF("name", "a"), "value", _V("b")),
 		),
-		`unparseable`, // cannot remove a top-lvel list and a single element from the list within
+		`unparseable`, // cannot remove a top-level list and a single element from the list within
 		`{"listOfLists": [{"name": "a", "value": ["b"]}]}`,
 	}, {
 		// path to non-existant top-level element
@@ -590,12 +590,12 @@ func (tt removeTestCase) test(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create schema: %v", err)
 	}
+	pt := parser.Type(tt.rootTypeName)
 
 	for i, quadruplet := range tt.quadruplets {
 		quadruplet := quadruplet
 		t.Run(fmt.Sprintf("%v-valid-%v", tt.name, i), func(t *testing.T) {
 			t.Parallel()
-			pt := parser.Type(tt.rootTypeName)
 
 			tv, err := pt.FromYAML(quadruplet.object)
 			if err != nil {
@@ -637,6 +637,151 @@ func (tt removeTestCase) test(t *testing.T) {
 
 func TestRemove(t *testing.T) {
 	for _, tt := range removeCases {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			tt.test(t)
+		})
+	}
+}
+
+type reversibleExtractTestCase struct {
+	name         string
+	rootTypeName string
+	schema       typed.YAMLObject
+	pairs        []reversibleExtractPair
+}
+
+type reversibleExtractPair struct {
+	object typed.YAMLObject
+	pso    typed.YAMLObject
+}
+
+var reversibleExtractCases = []reversibleExtractTestCase{{
+	name:         "nested types",
+	rootTypeName: "type",
+	schema:       typed.YAMLObject(nestedTypesSchema),
+	pairs: []reversibleExtractPair{{
+		// add to top level element
+		`{"listOfLists": [{"name": "a", "value": ["b", "c"]}, {"name": "d"}]}`,
+		`{"listOfLists": [{"name": "f", "value": ["j", "k"]},]}`,
+	}, {
+		// add to leaf element
+		`{"listOfLists": [{"name": "a", "value": ["b", "c"]}, {"name": "d"}]}`,
+		`{"listOfLists": [{"name": "a", "value": ["j", "k"]},]}`,
+	}, {
+		// add to top level element
+		`{"listOfMaps": [{"name": "a", "value": {"b":"x", "c":"y"}}, {"name": "d", "value": {"e":"z"}}]}`,
+		`{"listOfMaps": [{"name": "f", "value": {"q":"p"}}]}`,
+	}, {
+		// add to leaf element
+		`{"listOfMaps": [{"name": "a", "value": {"b":"x", "c":"y"}}, {"name": "d", "value": {"e":"z"}}]}`,
+		`{"listOfMaps": [{"name": "a", "value": {"f":"p"}}]}`,
+	}, {
+		// replace leaf element
+		`{"listOfMaps": [{"name": "a", "value": {"b":"x", "c":"y"}}, {"name": "d", "value": {"e":"z"}}]}`,
+		`{"listOfMaps": [{"name": "a", "value": {"b":"p"}}]}`,
+	}, {
+		// add to top level element
+		`{"mapOfLists": {"b":["a","c"], "d":["e", "f"]}}`,
+		`{"mapOfLists": {"x":["y","z"]}}`,
+	}, {
+		// add to leaf element
+		`{"mapOfLists": {"b":["a","c"], "d":["e", "f"]}}`,
+		`{"mapOfLists": {"b":["y","z"]}}`,
+	}, {
+		// add to top level element
+		`{"mapOfMaps": {"b":{"a":"x","c":"z"}, "d":{"e":"y", "f":"w"}}}`,
+		`{"mapOfMaps": {"i":{"j":"k"}}}`,
+	}, {
+		// add to leaf element
+		`{"mapOfMaps": {"b":{"a":"x","c":"z"}, "d":{"e":"y", "f":"w"}}}`,
+		`{"mapOfMaps": {"b":{"j":"k"}}}`,
+	}, {
+		// replace leaf element
+		`{"mapOfMaps": {"b":{"a":"x","c":"z"}, "d":{"e":"y", "f":"w"}}}`,
+		`{"mapOfMaps": {"b":{"a":"k"}}}`,
+	}, {
+		// misc: add another root type
+		`{"listOfMaps": [{"name": "a", "value": {"b":"x", "c":"y"}}, {"name": "d", "value": {"e":"z"}}]}`,
+		`{"mapOfLists": {"b":["y","z"]}}`,
+	}, {
+		// misc: recursive deeply nested leaves
+		`{"mapOfMapsRecursive": {"a":{"b":{"c":null}, "d":{"e":{"f":null}, "g":null}}}}`,
+		`{"mapOfMapsRecursive": {"a":{"d":{"e":{"f":{"q":null}, "p":null}}}}}`,
+	}},
+}}
+
+func filterNonLeaves(set *fieldpath.Set) *fieldpath.Set {
+	paths := []fieldpath.Path{}
+	set.Iterate(func(p fieldpath.Path) {
+		parentPath := fieldpath.Path(p[0 : len(p)-1])
+		for i, path := range paths {
+			if parentPath.Equals(path) {
+				paths = append(paths[:i], paths[i+1:]...)
+				break
+			}
+		}
+		pathCopy := fieldpath.Path(make([]fieldpath.PathElement, len(p)))
+		copy(pathCopy, p)
+		paths = append(paths, pathCopy)
+	})
+	return fieldpath.NewSet(paths...)
+}
+
+func (tt reversibleExtractTestCase) test(t *testing.T) {
+	parser, err := typed.NewParser(tt.schema)
+	if err != nil {
+		t.Fatalf("failed to create schema: %v", err)
+	}
+	pt := parser.Type(tt.rootTypeName)
+
+	for i, pair := range tt.pairs {
+		pair := pair
+		t.Run(fmt.Sprintf("%v-valid-%v", tt.name, i), func(t *testing.T) {
+			t.Parallel()
+			// Generate initial typed obj
+			initialObj, err := pt.FromYAML(pair.object)
+			if err != nil {
+				t.Fatalf("unable to parser/validate initial object yaml: %v\n%v", err, pair.object)
+			}
+			// Generate PSO
+			pso, err := pt.FromYAML(pair.pso)
+			if err != nil {
+				t.Fatalf("unable to parser/validate PSO yaml: %v\n%v", err, pair.pso)
+			}
+			// Merge PSO with base object
+			mergedObj, err := initialObj.Merge(pso)
+			if err != nil {
+				t.Fatalf("unable to merge PSO into initial object: %v\n", err)
+			}
+			// convert PSO to fieldset
+			fieldSet, err := pso.ToFieldSet()
+			if err != nil {
+				t.Fatalf("unable to convert pso to fieldset: %v\n%v", err, pso)
+			}
+			// trying to extract the fieldSet directly will return everything
+			// under the first path in the set, so we must filter out all
+			// the non-leaf nodes from the fieldSet
+			extractSet := filterNonLeaves(fieldSet)
+			// extract  PSO fieldset from result object
+			extracted := mergedObj.ExtractItems(extractSet)
+			// confirm extract object is initial PSO
+			if !value.Equals(pso.AsValue(), extracted.AsValue()) {
+				t.Errorf("ExtractItems not reversible expected\n%v\nbut got\n%v\n",
+					value.ToString(pso.AsValue()), value.ToString(extracted.AsValue()),
+				)
+			}
+		})
+	}
+}
+
+// TestReversibleExtract ensures that when you apply a
+// partially specified object (PSO) to an existing object
+// and then Extract the fieldset from the resulting object
+// you receive back the initial partially specified object.
+func TestReversibleExtract(t *testing.T) {
+	for _, tt := range reversibleExtractCases {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
