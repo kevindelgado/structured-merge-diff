@@ -206,6 +206,29 @@ func (s *Set) WithPrefix(pe PathElement) *Set {
 	return subset
 }
 
+// Leaves returns a set containing only the leaf paths
+// of a set.
+func (s *Set) Leaves() *Set {
+	members := MakePathElementSet(len(s.Members.members))
+	for _, member := range s.Members.members {
+		isChild := false
+		for _, child := range s.Children.members {
+			if member.Equals(child.pathElement) {
+				isChild = true
+			}
+		}
+		if !isChild {
+			// any members that are not also children are leaves
+			members.members = append(members.members, member)
+		}
+	}
+
+	return &Set{
+		Members:  members,
+		Children: *s.Children.Leaves(),
+	}
+}
+
 // setNode is a pair of PathElement / Set, for the purpose of expressing
 // nested set membership.
 type setNode struct {
@@ -454,4 +477,18 @@ func (s *SetNodeMap) iteratePrefix(prefix Path, f func(Path)) {
 		pe := n.pathElement
 		n.set.iteratePrefix(append(prefix, pe), f)
 	}
+}
+
+// Leaves returns a SetNodeMap containing
+// only setNodes with leaf PathElements.
+func (s *SetNodeMap) Leaves() *SetNodeMap {
+	out := &SetNodeMap{}
+	out.members = make(sortedSetNode, len(s.members))
+	for i, n := range s.members {
+		out.members[i] = setNode{
+			pathElement: n.pathElement,
+			set:         n.set.Leaves(),
+		}
+	}
+	return out
 }
