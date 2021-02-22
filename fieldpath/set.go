@@ -206,6 +206,32 @@ func (s *Set) WithPrefix(pe PathElement) *Set {
 	return subset
 }
 
+// Leaves returns a set containing only the leaf paths
+// of a set.
+func (s *Set) Leaves() *Set {
+	paths := []Path{}
+	s.Iterate(func(p Path) {
+		parentPath := Path(p[0 : len(p)-1])
+		n := 0
+		for _, path := range paths {
+			// perform preorder DFS on every path in the set,
+			// if the parent of the current path exists in paths
+			// then the parent must not be a leaf and should be
+			// overwritten by the current path
+			if !parentPath.Equals(path) {
+				paths[n] = path
+				n++
+			}
+		}
+		paths = paths[:n]
+		// save a copy of current path or else it can be overwritten
+		pathCopy := Path(make([]PathElement, len(p)))
+		copy(pathCopy, p)
+		paths = append(paths, pathCopy)
+	})
+	return NewSet(paths...)
+}
+
 // setNode is a pair of PathElement / Set, for the purpose of expressing
 // nested set membership.
 type setNode struct {
