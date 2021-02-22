@@ -714,14 +714,21 @@ var reversibleExtractCases = []reversibleExtractTestCase{{
 
 func filterNonLeaves(set *fieldpath.Set) *fieldpath.Set {
 	paths := []fieldpath.Path{}
+	// perform preorder DFS on every path in the set
 	set.Iterate(func(p fieldpath.Path) {
 		parentPath := fieldpath.Path(p[0 : len(p)-1])
-		for i, path := range paths {
-			if parentPath.Equals(path) {
-				paths = append(paths[:i], paths[i+1:]...)
-				break
+		n := 0
+		for _, path := range paths {
+			// if the parnet of the current path exists in paths
+			// then the parent must not be a leaf and should be
+			// overwritten by the current path
+			if !parentPath.Equals(path) {
+				paths[n] = path
+				n++
 			}
 		}
+		paths = paths[:n]
+		// save a copy of current path or else it can be overwritten
 		pathCopy := fieldpath.Path(make([]fieldpath.PathElement, len(p)))
 		copy(pathCopy, p)
 		paths = append(paths, pathCopy)
@@ -763,7 +770,7 @@ func (tt reversibleExtractTestCase) test(t *testing.T) {
 			// trying to extract the fieldSet directly will return everything
 			// under the first path in the set, so we must filter out all
 			// the non-leaf nodes from the fieldSet
-			extractSet := filterNonLeaves(fieldSet)
+			extractSet := fieldSet.Leaves()
 			// extract  PSO fieldset from result object
 			extracted := mergedObj.ExtractItems(extractSet)
 			// confirm extract object is initial PSO
