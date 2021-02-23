@@ -341,6 +341,84 @@ func (f ForceApplyObject) preprocess(parser Parser) (Operation, error) {
 	return f, nil
 }
 
+// ExtractApply is a type of operation. It simulates extracting an object
+// the state based on the manager you have applied with, merging the
+// apply object with that extracted object and reapplying that.
+type ExtractApply struct {
+	Manager    string
+	APIVersion fieldpath.APIVersion
+	Object     typed.YAMLObject
+}
+
+var _ Operation = &ExtractApply{}
+
+func (e ExtractApply) run(state *State) error {
+	p, err := e.preprocess(state.Parser)
+	if err != nil {
+		return err
+	}
+	return p.run(state)
+}
+
+func (e ExtractApply) preprocess(parser Parser) (Operation, error) {
+	forceApply := ForceApply{
+		Manager:    e.Manager,
+		APIVersion: e.APIVersion,
+		Object:     e.Object,
+	}
+	op, err := forceApply.preprocess(parser)
+	if err != nil {
+		return nil, err
+	}
+	object, ok := op.(ForceApplyObject)
+	if !ok {
+		return nil, fmt.Errorf("%v is not an ForceApplyObject", op)
+	}
+	return ExtractApplyObject{
+		Manager:    object.Manager,
+		APIVersion: object.APIVersion,
+		Object:     object.Object,
+	}, nil
+}
+
+type ExtractApplyObject struct {
+	Manager    string
+	APIVersion fieldpath.APIVersion
+	Object     *typed.TypedValue
+}
+
+var _ Operation = &ExtractApplyObject{}
+
+func (e ExtractApplyObject) run(state *State) error {
+	var err error
+	obj := e.Object
+	// Get object from state
+	if state.Live != nil {
+		// Get set based on the manager you've applied with
+		set := fieldpath.NewSet()
+		mgr := state.Managers[e.Manager]
+		if mgr != nil {
+			// trying to extract the fieldSet directly will return everything
+			// under the first path in the set, so we must filter out all
+			// the non-leaf nodes from the fieldSet
+			set = mgr.Set().Leaves()
+		}
+		// ExtractFields from the state object based on the set
+		extracted := state.Live.ExtractItems(set)
+		// Merge ApplyObject on top of the extracted object
+		obj, err = extracted.Merge(e.Object)
+		if err != nil {
+			return err
+		}
+	}
+	// Reapply that to the state
+	return state.ApplyObject(obj, e.APIVersion, e.Manager, true)
+}
+
+func (e ExtractApplyObject) preprocess(parser Parser) (Operation, error) {
+	return e, nil
+}
+
 // Update is a type of operation. It is a controller type of
 // update. Errors are passed along.
 type Update struct {
