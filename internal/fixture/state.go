@@ -341,6 +341,82 @@ func (f ForceApplyObject) preprocess(parser Parser) (Operation, error) {
 	return f, nil
 }
 
+// ExtractApply is a type of operation. It simulates extracting an object
+// the state based on the manager you have applied with, merging the
+// apply object with that extracted object and reapplying that.
+type ExtractApply struct {
+	Apply
+}
+
+var _ Operation = &ExtractApply{}
+
+func (e ExtractApply) run(state *State) error {
+	p, err := e.preprocess(state.Parser)
+	if err != nil {
+		return err
+	}
+	return p.run(state)
+}
+
+func (e ExtractApply) preprocess(parser Parser) (Operation, error) {
+	op, err := e.Apply.preprocess(parser)
+	if err != nil {
+		return nil, err
+	}
+	apply, ok := op.(ApplyObject)
+	if !ok {
+		return nil, fmt.Errorf("%v is not an ApplyObject", op)
+	}
+	return ExtractApplyObject{
+		ApplyObject: apply,
+	}, nil
+}
+
+type ExtractApplyObject struct {
+	ApplyObject
+}
+
+var _ Operation = &ExtractApplyObject{}
+
+func (e ExtractApplyObject) run(state *State) error {
+	// Get object from state
+	// Get set based on the manager you've applied with
+	fmt.Printf("live = %+v\n", value.ToString(state.Live.AsValue()))
+	set := state.Managers[e.Manager].Set().Leaves()
+	fmt.Printf("set = %+v\n", set)
+	// ExtractFields from the state object based on the set
+	extracted := state.Live.ExtractItems(set)
+	fmt.Printf("extracted = %+v\n", value.ToString(extracted.AsValue()))
+	// Merge ApplyObject on top of the extracted object
+	obj, err := e.Object.Merge(extracted)
+	fmt.Printf("obj = %+v\n", value.ToString(obj.AsValue()))
+	if err != nil {
+		return err
+	}
+	// Reapply that to the state
+	err = state.ApplyObject(obj, e.APIVersion, e.Manager, false)
+	fmt.Printf("err = %+v\n", err)
+	if e.Conflicts != nil {
+		conflicts := merge.Conflicts{}
+		if err != nil {
+			conflicts = err.(merge.Conflicts)
+		}
+		if len(addedConflicts(e.Conflicts, conflicts)) != 0 || len(addedConflicts(conflicts, e.Conflicts)) != 0 {
+			return fmt.Errorf("Expected conflicts:\n%v\ngot\n%v\nadded:\n%v\nremoved:\n%v",
+				e.Conflicts.Error(),
+				conflicts.Error(),
+				addedConflicts(e.Conflicts, conflicts).Error(),
+				addedConflicts(conflicts, e.Conflicts).Error(),
+			)
+		}
+	}
+	return nil
+}
+
+func (e ExtractApplyObject) preprocess(parser Parser) (Operation, error) {
+	return e, nil
+}
+
 // Update is a type of operation. It is a controller type of
 // update. Errors are passed along.
 type Update struct {
