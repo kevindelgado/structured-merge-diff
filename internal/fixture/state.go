@@ -345,7 +345,9 @@ func (f ForceApplyObject) preprocess(parser Parser) (Operation, error) {
 // the state based on the manager you have applied with, merging the
 // apply object with that extracted object and reapplying that.
 type ExtractApply struct {
-	Apply
+	Manager    string
+	APIVersion fieldpath.APIVersion
+	Object     typed.YAMLObject
 }
 
 var _ Operation = &ExtractApply{}
@@ -359,57 +361,61 @@ func (e ExtractApply) run(state *State) error {
 }
 
 func (e ExtractApply) preprocess(parser Parser) (Operation, error) {
-	op, err := e.Apply.preprocess(parser)
+	forceApply := ForceApply{
+		Manager:    e.Manager,
+		APIVersion: e.APIVersion,
+		Object:     e.Object,
+	}
+	op, err := forceApply.preprocess(parser)
 	if err != nil {
 		return nil, err
 	}
-	apply, ok := op.(ApplyObject)
+	object, ok := op.(ForceApplyObject)
 	if !ok {
-		return nil, fmt.Errorf("%v is not an ApplyObject", op)
+		return nil, fmt.Errorf("%v is not an ForceApplyObject", op)
 	}
 	return ExtractApplyObject{
-		ApplyObject: apply,
+		Manager:    object.Manager,
+		APIVersion: object.APIVersion,
+		Object:     object.Object,
 	}, nil
 }
 
 type ExtractApplyObject struct {
-	ApplyObject
+	Manager    string
+	APIVersion fieldpath.APIVersion
+	Object     *typed.TypedValue
 }
 
 var _ Operation = &ExtractApplyObject{}
 
 func (e ExtractApplyObject) run(state *State) error {
+	var err error
+	obj := e.Object
 	// Get object from state
-	// Get set based on the manager you've applied with
-	fmt.Printf("live = %+v\n", value.ToString(state.Live.AsValue()))
-	set := state.Managers[e.Manager].Set().Leaves()
-	fmt.Printf("set = %+v\n", set)
-	// ExtractFields from the state object based on the set
-	extracted := state.Live.ExtractItems(set)
-	fmt.Printf("extracted = %+v\n", value.ToString(extracted.AsValue()))
-	// Merge ApplyObject on top of the extracted object
-	obj, err := e.Object.Merge(extracted)
-	fmt.Printf("obj = %+v\n", value.ToString(obj.AsValue()))
-	if err != nil {
-		return err
+	if state.Live != nil {
+		fmt.Printf("live = %+v\n", value.ToString(state.Live.AsValue()))
+		// Get set based on the manager you've applied with
+		mgrs := state.Managers
+		mgr := mgrs[e.Manager]
+		set := fieldpath.NewSet()
+		if mgr != nil {
+			set = mgr.Set().Leaves()
+		}
+		fmt.Printf("set = %+v\n", set)
+		// before applying fail if e.APIVersion != set's APIVersion
+		// ExtractFields from the state object based on the set
+		extracted := state.Live.ExtractItems(set)
+		fmt.Printf("extracted = %+v\n", value.ToString(extracted.AsValue()))
+		// Merge ApplyObject on top of the extracted object
+		obj, err = extracted.Merge(e.Object)
+		fmt.Printf("obj = %+v\n", value.ToString(obj.AsValue()))
+		if err != nil {
+			return err
+		}
 	}
 	// Reapply that to the state
-	err = state.ApplyObject(obj, e.APIVersion, e.Manager, false)
-	fmt.Printf("err = %+v\n", err)
-	if e.Conflicts != nil {
-		conflicts := merge.Conflicts{}
-		if err != nil {
-			conflicts = err.(merge.Conflicts)
-		}
-		if len(addedConflicts(e.Conflicts, conflicts)) != 0 || len(addedConflicts(conflicts, e.Conflicts)) != 0 {
-			return fmt.Errorf("Expected conflicts:\n%v\ngot\n%v\nadded:\n%v\nremoved:\n%v",
-				e.Conflicts.Error(),
-				conflicts.Error(),
-				addedConflicts(e.Conflicts, conflicts).Error(),
-				addedConflicts(conflicts, e.Conflicts).Error(),
-			)
-		}
-	}
+	err = state.ApplyObject(obj, e.APIVersion, e.Manager, true)
 	return nil
 }
 
