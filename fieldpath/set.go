@@ -206,31 +206,43 @@ func (s *Set) WithPrefix(pe PathElement) *Set {
 	return subset
 }
 
-func (s *Set) leavesPrefix(prefix Path, set *Set) {
-	for _, child := range s.Children.members {
-		child.set.leavesPrefix(append(prefix, child.pathElement), set)
-	}
-
-	for _, member := range s.Members.members {
-		isChild := false
-		for _, child := range s.Children.members {
-			if member.Equals(child.pathElement) {
-				isChild = true
-			}
-		}
-		if !isChild {
-			// any members that are not also children are leaves
-			set.Insert(append(prefix, member))
-		}
-	}
-}
-
 // Leaves returns a set containing only the leaf paths
 // of a set.
 func (s *Set) Leaves() *Set {
-	out := &Set{}
-	s.leavesPrefix(Path{}, out)
-	return out
+	leaves := PathElementSet{}
+	im := 0
+	ic := 0
+	prevDiff := 0
+
+	// any members that are not also children are leaves
+	for im < len(s.Members.members) {
+		member := s.Members.members[im]
+		if ic >= len(s.Children.members) {
+			leaves.members = append(leaves.members, member)
+			im++
+			continue
+		}
+
+		diff := member.Compare(s.Children.members[ic].pathElement)
+		if diff-prevDiff != 0 {
+			leaves.members = append(leaves.members, member)
+		}
+		prevDiff = diff
+
+		if diff < 0 {
+			im++
+		} else if diff > 0 {
+			ic++
+		} else {
+			im++
+			ic++
+		}
+	}
+
+	return &Set{
+		Members:  leaves,
+		Children: *s.Children.Leaves(),
+	}
 }
 
 // setNode is a pair of PathElement / Set, for the purpose of expressing
@@ -481,4 +493,18 @@ func (s *SetNodeMap) iteratePrefix(prefix Path, f func(Path)) {
 		pe := n.pathElement
 		n.set.iteratePrefix(append(prefix, pe), f)
 	}
+}
+
+// Leaves returns a SetNodeMap containing
+// only setNodes with leaf PathElements.
+func (s *SetNodeMap) Leaves() *SetNodeMap {
+	out := &SetNodeMap{}
+	for _, n := range s.members {
+		next := setNode{
+			pathElement: n.pathElement,
+			set:         n.set.Leaves(),
+		}
+		out.members = append(out.members, next)
+	}
+	return out
 }
