@@ -17,6 +17,7 @@ limitations under the License.
 package fieldpath
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 
@@ -206,9 +207,18 @@ func (s *Set) WithPrefix(pe PathElement) *Set {
 	return subset
 }
 
-func (s *Set) leavesPrefix(prefix Path, set *Set) {
+func (s *Set) leavesPrefix(prefix Path, set *Set, set2 *Set) {
+	//newSortedSetNode := make(sortedSetNode, len(s.Children.members))
+	//newSetNodeMap := SetNodeMap{newSortedSetNode}
 	for _, child := range s.Children.members {
-		child.set.leavesPrefix(append(prefix, child.pathElement), set)
+		fmt.Printf("child.pathElement = %+v\n", child.pathElement)
+		newSetNode := setNode{
+			pathElement: child.pathElement,
+			set:         &Set{},
+		}
+		//newSortedSetNode = append(newSortedSetNode, newSetNode)
+		set2.Children.members = append(set2.Children.members, newSetNode)
+		child.set.leavesPrefix(append(prefix, child.pathElement), set, newSetNode.set)
 	}
 
 	for _, member := range s.Members.members {
@@ -220,7 +230,10 @@ func (s *Set) leavesPrefix(prefix Path, set *Set) {
 		}
 		if !isChild {
 			// any members that are not also children are leaves
+			fmt.Printf("member = %+v\n", member)
+			set2.Members.members = append(set2.Members.members, member)
 			set.Insert(append(prefix, member))
+			//set.Members.members
 		}
 	}
 }
@@ -229,8 +242,12 @@ func (s *Set) leavesPrefix(prefix Path, set *Set) {
 // of a set.
 func (s *Set) Leaves() *Set {
 	out := &Set{}
-	s.leavesPrefix(Path{}, out)
-	return out
+	out2 := &Set{}
+	s.leavesPrefix(Path{}, out, out2)
+	fmt.Printf("out = %+v\n", out)
+	fmt.Printf("out2 = %+v\n", out2)
+	fmt.Printf("out.Equals(out2) = %+v\n", out.Equals(out2))
+	return out2
 }
 
 // setNode is a pair of PathElement / Set, for the purpose of expressing
