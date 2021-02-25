@@ -496,15 +496,45 @@ func TestSetLeaves(t *testing.T) {
 				_P("root", "l1", "l2", "l3"),
 			),
 		}, {
-			name: "nested with lists",
+			name: "multiple values, check for overwrite",
+			input: NewSet(
+				_P("root", KeyByFields("name", "a")),
+				_P("root", KeyByFields("name", "a"), "name"),
+				_P("root", KeyByFields("name", "a"), "value", "b"),
+				_P("root", KeyByFields("name", "a"), "value", "c"),
+			),
+			expected: NewSet(
+				_P("root", KeyByFields("name", "a"), "name"),
+				_P("root", KeyByFields("name", "a"), "value", "b"),
+				_P("root", KeyByFields("name", "a"), "value", "c"),
+			),
+		}, {
+			name: "multiple values and nested",
+			input: NewSet(
+				_P("root", KeyByFields("name", "a")),
+				_P("root", KeyByFields("name", "a"), "name"),
+				_P("root", KeyByFields("name", "a"), "value", "b"),
+				_P("root", KeyByFields("name", "a"), "value", "b", "d"),
+				_P("root", KeyByFields("name", "a"), "value", "c"),
+			),
+			expected: NewSet(
+				_P("root", KeyByFields("name", "a"), "name"),
+				_P("root", KeyByFields("name", "a"), "value", "b", "d"),
+				_P("root", KeyByFields("name", "a"), "value", "c"),
+			),
+		}, {
+			name: "all-in-one",
 			input: NewSet(
 				_P("root"),
 				_P("root", KeyByFields("name", "a")),
 				_P("root", KeyByFields("name", "a"), "name"),
 				_P("root", KeyByFields("name", "a"), "value", "b"),
 				_P("root", KeyByFields("name", "a"), "value", "b", "c"),
+				_P("root", KeyByFields("name", "a"), "value", "d"),
+				_P("root", KeyByFields("name", "a"), "value", "e"),
 				_P("root", "x"),
 				_P("root", "x", "y"),
+				_P("root", "x", "z"),
 				_P("root", KeyByFields("name", "p")),
 				_P("root", KeyByFields("name", "p"), "name"),
 				_P("root", KeyByFields("name", "p"), "value", "q"),
@@ -512,7 +542,10 @@ func TestSetLeaves(t *testing.T) {
 			expected: NewSet(
 				_P("root", KeyByFields("name", "a"), "name"),
 				_P("root", KeyByFields("name", "a"), "value", "b", "c"),
+				_P("root", KeyByFields("name", "a"), "value", "d"),
+				_P("root", KeyByFields("name", "a"), "value", "e"),
 				_P("root", "x", "y"),
+				_P("root", "x", "z"),
 				_P("root", KeyByFields("name", "p"), "name"),
 				_P("root", KeyByFields("name", "p"), "value", "q"),
 			),
