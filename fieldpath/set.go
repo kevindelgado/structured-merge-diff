@@ -213,58 +213,53 @@ func abs(x int) int {
 	return -x
 }
 
-func (s *Set) leavesPrefix() *Set {
+// Leaves returns a set containing only the leaf paths
+// of a set.
+func (s *Set) Leaves() *Set {
 	members := PathElementSet{}
-	im := 0
-	ic := 0
+	//im := 0
+	//ic := 0
 
-	prevDiff := 0
-	for im < len(s.Members.members) {
-		if ic >= len(s.Children.members) {
-			members.members = append(members.members, s.Members.members[im])
-			im++
-			continue
+	//prevDiff := 0
+	//for im < len(s.Members.members) {
+	//	if ic >= len(s.Children.members) {
+	//		members.members = append(members.members, s.Members.members[im])
+	//		im++
+	//		continue
 
-		}
-		diff := s.Members.members[im].Compare(s.Children.members[ic].pathElement)
-		if diff-prevDiff != 0 {
-			members.members = append(members.members, s.Members.members[im])
-		}
-		prevDiff = diff
-		if diff < 0 {
-			im++
-		} else if diff > 0 {
-			ic++
-		} else {
-			im++
-			ic++
-		}
-	}
-
-	//for _, member := range s.Members.members {
-	//	isChild := false
-	//	for _, child := range s.Children.members {
-	//		if member.Equals(child.pathElement) {
-	//			isChild = true
-	//		}
 	//	}
-	//	if !isChild {
-	//		// any members that are not also children are leaves
-	//		//set2.Members.members = append(set2.Members.members, member)
-	//		members.members = append(members.members, member)
+	//	diff := s.Members.members[im].Compare(s.Children.members[ic].pathElement)
+	//	if diff-prevDiff != 0 {
+	//		members.members = append(members.members, s.Members.members[im])
+	//	}
+	//	prevDiff = diff
+	//	if diff < 0 {
+	//		im++
+	//	} else if diff > 0 {
+	//		ic++
+	//	} else {
+	//		im++
+	//		ic++
 	//	}
 	//}
+
+	for _, member := range s.Members.members {
+		isChild := false
+		for _, child := range s.Children.members {
+			if member.Equals(child.pathElement) {
+				isChild = true
+			}
+		}
+		if !isChild {
+			// any members that are not also children are leaves
+			members.members = append(members.members, member)
+		}
+	}
 
 	return &Set{
 		Members:  members,
 		Children: *s.Children.Leaves(),
 	}
-}
-
-// Leaves returns a set containing only the leaf paths
-// of a set.
-func (s *Set) Leaves() *Set {
-	return s.leavesPrefix()
 }
 
 // setNode is a pair of PathElement / Set, for the purpose of expressing
