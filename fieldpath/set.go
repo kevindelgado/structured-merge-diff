@@ -17,7 +17,6 @@ limitations under the License.
 package fieldpath
 
 import (
-	"fmt"
 	"sort"
 	"strings"
 
@@ -207,47 +206,65 @@ func (s *Set) WithPrefix(pe PathElement) *Set {
 	return subset
 }
 
-func (s *Set) leavesPrefix(prefix Path, set *Set, set2 *Set) {
-	//newSortedSetNode := make(sortedSetNode, len(s.Children.members))
-	//newSetNodeMap := SetNodeMap{newSortedSetNode}
-	for _, child := range s.Children.members {
-		fmt.Printf("child.pathElement = %+v\n", child.pathElement)
-		newSetNode := setNode{
-			pathElement: child.pathElement,
-			set:         &Set{},
+func abs(x int) int {
+	if x > 0 {
+		return x
+	}
+	return -x
+}
+
+func (s *Set) leavesPrefix() *Set {
+	members := PathElementSet{}
+	im := 0
+	ic := 0
+
+	prevDiff := 0
+	for im < len(s.Members.members) {
+		if ic >= len(s.Children.members) {
+			members.members = append(members.members, s.Members.members[im])
+			im++
+			continue
+
 		}
-		//newSortedSetNode = append(newSortedSetNode, newSetNode)
-		set2.Children.members = append(set2.Children.members, newSetNode)
-		child.set.leavesPrefix(append(prefix, child.pathElement), set, newSetNode.set)
+		diff := s.Members.members[im].Compare(s.Children.members[ic].pathElement)
+		if diff-prevDiff != 0 {
+			members.members = append(members.members, s.Members.members[im])
+		}
+		prevDiff = diff
+		if diff < 0 {
+			im++
+		} else if diff > 0 {
+			ic++
+		} else {
+			im++
+			ic++
+		}
 	}
 
-	for _, member := range s.Members.members {
-		isChild := false
-		for _, child := range s.Children.members {
-			if member.Equals(child.pathElement) {
-				isChild = true
-			}
-		}
-		if !isChild {
-			// any members that are not also children are leaves
-			fmt.Printf("member = %+v\n", member)
-			set2.Members.members = append(set2.Members.members, member)
-			set.Insert(append(prefix, member))
-			//set.Members.members
-		}
+	//for _, member := range s.Members.members {
+	//	isChild := false
+	//	for _, child := range s.Children.members {
+	//		if member.Equals(child.pathElement) {
+	//			isChild = true
+	//		}
+	//	}
+	//	if !isChild {
+	//		// any members that are not also children are leaves
+	//		//set2.Members.members = append(set2.Members.members, member)
+	//		members.members = append(members.members, member)
+	//	}
+	//}
+
+	return &Set{
+		Members:  members,
+		Children: *s.Children.Leaves(),
 	}
 }
 
 // Leaves returns a set containing only the leaf paths
 // of a set.
 func (s *Set) Leaves() *Set {
-	out := &Set{}
-	out2 := &Set{}
-	s.leavesPrefix(Path{}, out, out2)
-	fmt.Printf("out = %+v\n", out)
-	fmt.Printf("out2 = %+v\n", out2)
-	fmt.Printf("out.Equals(out2) = %+v\n", out.Equals(out2))
-	return out2
+	return s.leavesPrefix()
 }
 
 // setNode is a pair of PathElement / Set, for the purpose of expressing
@@ -498,4 +515,16 @@ func (s *SetNodeMap) iteratePrefix(prefix Path, f func(Path)) {
 		pe := n.pathElement
 		n.set.iteratePrefix(append(prefix, pe), f)
 	}
+}
+
+func (s *SetNodeMap) Leaves() *SetNodeMap {
+	out := &SetNodeMap{}
+	for _, n := range s.members {
+		next := setNode{
+			pathElement: n.pathElement,
+			set:         n.set.Leaves(),
+		}
+		out.members = append(out.members, next)
+	}
+	return out
 }
