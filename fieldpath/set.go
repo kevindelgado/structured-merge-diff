@@ -209,7 +209,7 @@ func (s *Set) WithPrefix(pe PathElement) *Set {
 // Leaves returns a set containing only the leaf paths
 // of a set.
 func (s *Set) Leaves() *Set {
-	leaves := PathElementSet{}
+	leaves := MakePathElementSet(len(s.Members.members))
 	im := 0
 	ic := 0
 	prevDiff := 0
@@ -498,13 +498,15 @@ func (s *SetNodeMap) iteratePrefix(prefix Path, f func(Path)) {
 // Leaves returns a SetNodeMap containing
 // only setNodes with leaf PathElements.
 func (s *SetNodeMap) Leaves() *SetNodeMap {
-	out := &SetNodeMap{}
-	for _, n := range s.members {
+	out := &SetNodeMap{
+		members: make(sortedSetNode, len(s.members)),
+	}
+	for i, n := range s.members {
 		next := setNode{
 			pathElement: n.pathElement,
 			set:         n.set.Leaves(),
 		}
-		out.members = append(out.members, next)
+		out.members[i] = next
 	}
 	return out
 }
