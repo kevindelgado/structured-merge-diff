@@ -211,14 +211,15 @@ func (s *Set) WithPrefix(pe PathElement) *Set {
 func (s *Set) Leaves() *Set {
 	members := MakePathElementSet(len(s.Members.members))
 	for _, member := range s.Members.members {
-		isChild := false
-		for _, child := range s.Children.members {
-			if member.Equals(child.pathElement) {
-				isChild = true
-			}
+		if len(s.Children.members) == 0 {
+			members.members = append(members.members, member)
+			continue
 		}
-		if !isChild {
-			// any members that are not also children are leaves
+		loc := sort.Search(len(s.Children.members), func(i int) bool {
+			return member.Equals(s.Children.members[i].pathElement)
+		})
+		// any members that are not also children are leaves
+		if loc == len(s.Children.members) && !member.Equals(s.Children.members[0].pathElement) {
 			members.members = append(members.members, member)
 		}
 	}
