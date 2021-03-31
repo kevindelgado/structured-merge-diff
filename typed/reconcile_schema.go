@@ -194,12 +194,12 @@ func (v *reconcileWithSchemaWalker) doList(t *schema.List) (errs ValidationError
 		return errs
 	}
 	// reconcile lists changed from atomic to granular
-	if v.isAtomic && t.ElementRelationship == schema.Associative {
-		v.toAdd, errs = buildGranularFieldSet(v.path, v.value)
-		if errs != nil {
-			return errs
-		}
-	}
+	//if v.isAtomic && t.ElementRelationship == schema.Associative {
+	//	v.toAdd, errs = buildGranularFieldSet(v.path, v.value)
+	//	if errs != nil {
+	//		return errs
+	//	}
+	//}
 	if v.fieldSet != nil {
 		errs = v.visitListItems(t, v.fieldSet)
 	}
@@ -240,12 +240,12 @@ func (v *reconcileWithSchemaWalker) doMap(t *schema.Map) (errs ValidationErrors)
 		return errs
 	}
 	// reconcile maps changed from atomic to granular
-	if v.isAtomic && (t.ElementRelationship == schema.Separable || t.ElementRelationship == "") {
-		v.toAdd, errs = buildGranularFieldSet(v.path, v.value)
-		if errs != nil {
-			return errs
-		}
-	}
+	//if v.isAtomic && (t.ElementRelationship == schema.Separable || t.ElementRelationship == "") {
+	//	v.toAdd, errs = buildGranularFieldSet(v.path, v.value)
+	//	if errs != nil {
+	//		return errs
+	//	}
+	//}
 	if v.fieldSet != nil {
 		errs = v.visitMapItems(t, v.fieldSet)
 	}

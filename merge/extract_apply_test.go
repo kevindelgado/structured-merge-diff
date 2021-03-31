@@ -46,7 +46,7 @@ var extractParser = func() Parser {
         map:
           elementType:
             scalar: string
-          elementRelationship: associative
+          elementRelationship: separable
     - name: atomicMap
       type:
         map:
@@ -58,6 +58,29 @@ var extractParser = func() Parser {
 	}
 	return SameVersionParser{T: parser.Type("sets")}
 }()
+
+//var extractParser = func() Parser {
+//	parser, err := typed.NewParser(`types:
+//- name: sets
+//  map:
+//    fields:
+//    - name: list
+//      type:
+//        list:
+//          elementType:
+//            scalar: string
+//          elementRelationship: associative
+//    - name: map
+//      type:
+//        map:
+//          elementType:
+//            scalar: string
+//          elementRelationship: separable`)
+//	if err != nil {
+//		panic(err)
+//	}
+//	return SameVersionParser{T: parser.Type("sets")}
+//}()
 
 func TestExtractApply(t *testing.T) {
 	tests := map[string]TestCase{
@@ -451,7 +474,9 @@ func TestExtractApply(t *testing.T) {
 					Manager: "apply-two",
 					Object: `
 						list:
+						 - a
 						 - b
+						 - c
 					`,
 					APIVersion: "v1",
 				},
@@ -466,6 +491,7 @@ func TestExtractApply(t *testing.T) {
 				list:
 				- a
 				- b
+				- c
 			`,
 			APIVersion: "v1",
 			Managed: fieldpath.ManagedFields{
@@ -485,6 +511,8 @@ func TestExtractApply(t *testing.T) {
 				),
 				"apply-two": fieldpath.NewVersionedSet(
 					_NS(
+						_P("list", _V("c")),
+						_P("list", _V("a")),
 						_P("list", _V("b")),
 					),
 					"v1",
@@ -623,12 +651,15 @@ func TestExtractApply(t *testing.T) {
 			Object: `
 				map:
 				  b: d
+				  a: c
 			`,
 			APIVersion: "v1",
 			Managed: fieldpath.ManagedFields{
 				"apply-one": fieldpath.NewVersionedSet(
 					_NS(
 						_P("map"),
+						_P("map", "a"),
+						_P("map", "b"),
 					),
 					"v1",
 					false,
