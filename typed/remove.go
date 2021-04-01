@@ -53,8 +53,17 @@ func (w *removingWalker) doScalar(t *schema.Scalar) ValidationErrors {
 func (w *removingWalker) doList(t *schema.List) (errs ValidationErrors) {
 	l := w.value.AsListUsing(w.allocator)
 	defer w.allocator.Free(l)
-	// If list is null, empty, or atomic just return
-	if l == nil || l.Length() == 0 || t.ElementRelationship == schema.Atomic {
+	// If list is null, empty just return
+	if l == nil || l.Length() == 0 {
+		return nil
+	}
+
+	// atomic lists should return everything in the case of extract
+	// and nothing in the case of remove (!w.shouldExtract)
+	if t.ElementRelationship == schema.Atomic {
+		if w.shouldExtract {
+			w.out = w.value.Unstructured()
+		}
 		return nil
 	}
 
@@ -70,14 +79,18 @@ func (w *removingWalker) doList(t *schema.List) (errs ValidationErrors) {
 		// but ignore them when we are removing (i.e. !w.shouldExtract)
 		if w.toRemove.Has(path) {
 			if w.shouldExtract {
-				itemIsAtomic, err := isAtomic(item, w.schema, t.ElementType)
-				if err != nil {
-					return err
-				}
-				if !itemIsAtomic && item.IsMap() {
-					retainOnlyListKeys(t.Keys, item.AsMap())
-				}
-				newItems = append(newItems, item.Unstructured())
+				//itemIsAtomic, err := isAtomic(item, w.schema, t.ElementType)
+				//if err != nil {
+				//	return err
+				//}
+				//if !itemIsAtomic && item.IsMap() {
+				//	retainOnlyListKeys(t.Keys, item.AsMap())
+				//}
+				//newItems = append(newItems, item.Unstructured())
+
+				//val := removeItemsWithSchema(item, w.toRemove, w.schema, t.ElementType, w.shouldExtract)
+				//unstructured := val.Unstructured()
+				newItems = append(newItems, removeItemsWithSchema(item, w.toRemove, w.schema, t.ElementType, w.shouldExtract).Unstructured())
 			} else {
 				continue
 			}
@@ -99,12 +112,24 @@ func (w *removingWalker) doList(t *schema.List) (errs ValidationErrors) {
 }
 
 func (w *removingWalker) doMap(t *schema.Map) ValidationErrors {
+	if w == nil || w.value == nil || w.allocator == nil {
+		return nil
+	}
 	m := w.value.AsMapUsing(w.allocator)
 	if m != nil {
 		defer w.allocator.Free(m)
 	}
-	// If map is null, empty, or atomic just return
-	if m == nil || m.Empty() || t.ElementRelationship == schema.Atomic {
+	// If map is null or empty just return
+	if m == nil || m.Empty() {
+		return nil
+	}
+
+	// atomic maps should return everything in the case of extract
+	// and nothing in the case of remove (!w.shouldExtract)
+	if t.ElementRelationship == schema.Atomic {
+		if w.shouldExtract {
+			w.out = w.value.Unstructured()
+		}
 		return nil
 	}
 
@@ -114,7 +139,7 @@ func (w *removingWalker) doMap(t *schema.Map) ValidationErrors {
 	}
 
 	newMap := map[string]interface{}{}
-	var errors ValidationErrors
+	//var errors ValidationErrors
 	m.Iterate(func(k string, val value.Value) bool {
 		pe := fieldpath.PathElement{FieldName: &k}
 		path, _ := fieldpath.MakePath(pe)
@@ -126,17 +151,21 @@ func (w *removingWalker) doMap(t *schema.Map) ValidationErrors {
 		// but ignore them when we are removing (i.e. !w.shouldExtract)
 		if w.toRemove.Has(path) {
 			if w.shouldExtract {
-				valIsAtomic, err := isAtomic(val, w.schema, fieldType)
-				if err != nil {
-					errors = err
-					return false
-				}
+				//valIsAtomic, err := isAtomic(val, w.schema, fieldType)
+				//if err != nil {
+				//	errors = err
+				//	return false
+				//}
 
-				if !valIsAtomic && (val.IsMap() || val.IsList()) {
-					newMap[k] = nil
-				} else {
-					newMap[k] = val.Unstructured()
-				}
+				//if !valIsAtomic && (val.IsMap() || val.IsList()) {
+				//	newMap[k] = nil
+				//} else {
+				//	newMap[k] = val.Unstructured()
+				//}
+				//val := fmt.Printf("val.IsList() = %+v\n", val.IsList())
+				//unstructured := val.Unstructured()
+				newMap[k] = removeItemsWithSchema(val, w.toRemove, w.schema, fieldType, w.shouldExtract).Unstructured()
+
 			}
 			return true
 		}
@@ -151,9 +180,9 @@ func (w *removingWalker) doMap(t *schema.Map) ValidationErrors {
 		newMap[k] = val.Unstructured()
 		return true
 	})
-	if errors != nil {
-		return errors
-	}
+	//if errors != nil {
+	//	return errors
+	//}
 	if len(newMap) > 0 {
 		w.out = newMap
 	}
