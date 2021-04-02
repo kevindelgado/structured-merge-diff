@@ -474,9 +474,7 @@ func TestExtractApply(t *testing.T) {
 					Manager: "apply-two",
 					Object: `
 						list:
-						 - a
 						 - b
-						 - c
 					`,
 					APIVersion: "v1",
 				},
@@ -489,30 +487,26 @@ func TestExtractApply(t *testing.T) {
 			// but actually got:
 			Object: `
 				list:
-				- a
 				- b
-				- c
 			`,
 			APIVersion: "v1",
 			Managed: fieldpath.ManagedFields{
 				"apply-one": fieldpath.NewVersionedSet(
 					// BROKEN expected:
-					//_NS(
-					//	_P("list"),
-					//),
-					// but actually got:
 					_NS(
 						_P("list"),
-						_P("list", _V("a")),
-						_P("list", _V("b")),
 					),
+					// but actually got:
+					//_NS(
+					//	_P("list"),
+					//	_P("list", _V("a")),
+					//	_P("list", _V("b")),
+					//),
 					"v1",
 					false,
 				),
 				"apply-two": fieldpath.NewVersionedSet(
 					_NS(
-						_P("list", _V("c")),
-						_P("list", _V("a")),
 						_P("list", _V("b")),
 					),
 					"v1",
@@ -651,15 +645,12 @@ func TestExtractApply(t *testing.T) {
 			Object: `
 				map:
 				  b: d
-				  a: c
 			`,
 			APIVersion: "v1",
 			Managed: fieldpath.ManagedFields{
 				"apply-one": fieldpath.NewVersionedSet(
 					_NS(
 						_P("map"),
-						_P("map", "a"),
-						_P("map", "b"),
 					),
 					"v1",
 					false,

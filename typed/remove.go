@@ -51,6 +51,9 @@ func (w *removingWalker) doScalar(t *schema.Scalar) ValidationErrors {
 }
 
 func (w *removingWalker) doList(t *schema.List) (errs ValidationErrors) {
+	if !w.value.IsList() {
+		return nil
+	}
 	l := w.value.AsListUsing(w.allocator)
 	defer w.allocator.Free(l)
 	// If list is null, empty just return
@@ -79,17 +82,6 @@ func (w *removingWalker) doList(t *schema.List) (errs ValidationErrors) {
 		// but ignore them when we are removing (i.e. !w.shouldExtract)
 		if w.toRemove.Has(path) {
 			if w.shouldExtract {
-				//itemIsAtomic, err := isAtomic(item, w.schema, t.ElementType)
-				//if err != nil {
-				//	return err
-				//}
-				//if !itemIsAtomic && item.IsMap() {
-				//	retainOnlyListKeys(t.Keys, item.AsMap())
-				//}
-				//newItems = append(newItems, item.Unstructured())
-
-				//val := removeItemsWithSchema(item, w.toRemove, w.schema, t.ElementType, w.shouldExtract)
-				//unstructured := val.Unstructured()
 				newItems = append(newItems, removeItemsWithSchema(item, w.toRemove, w.schema, t.ElementType, w.shouldExtract).Unstructured())
 			} else {
 				continue
@@ -112,7 +104,7 @@ func (w *removingWalker) doList(t *schema.List) (errs ValidationErrors) {
 }
 
 func (w *removingWalker) doMap(t *schema.Map) ValidationErrors {
-	if w == nil || w.value == nil || w.allocator == nil {
+	if !w.value.IsMap() {
 		return nil
 	}
 	m := w.value.AsMapUsing(w.allocator)
@@ -151,19 +143,6 @@ func (w *removingWalker) doMap(t *schema.Map) ValidationErrors {
 		// but ignore them when we are removing (i.e. !w.shouldExtract)
 		if w.toRemove.Has(path) {
 			if w.shouldExtract {
-				//valIsAtomic, err := isAtomic(val, w.schema, fieldType)
-				//if err != nil {
-				//	errors = err
-				//	return false
-				//}
-
-				//if !valIsAtomic && (val.IsMap() || val.IsList()) {
-				//	newMap[k] = nil
-				//} else {
-				//	newMap[k] = val.Unstructured()
-				//}
-				//val := fmt.Printf("val.IsList() = %+v\n", val.IsList())
-				//unstructured := val.Unstructured()
 				newMap[k] = removeItemsWithSchema(val, w.toRemove, w.schema, fieldType, w.shouldExtract).Unstructured()
 
 			}

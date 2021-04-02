@@ -72,29 +72,6 @@ var structWithAtomicParser = func() *typed.Parser {
 	return newParser
 }()
 
-var noChangeParser = func() Parser {
-	parser, err := typed.NewParser(`types:
-- name: sets
-  map:
-    fields:
-    - name: list
-      type:
-        list:
-          elementType:
-            scalar: string
-          elementRelationship: associative
-    - name: map
-      type:
-        map:
-          elementType:
-            scalar: string
-          elementRelationship: separable`)
-	if err != nil {
-		panic(err)
-	}
-	return SameVersionParser{T: parser.Type("sets")}
-}()
-
 func TestGranularToAtomicSchemaChanges(t *testing.T) {
 	tests := map[string]TestCase{
 		"to-atomic": {
@@ -270,99 +247,6 @@ func TestAtomicToGranularSchemaChanges(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			if err := test.Test(structWithAtomicParser); err != nil {
-				t.Fatal(err)
-			}
-		})
-	}
-}
-
-func TestNoSchemaChanges(t *testing.T) {
-	tests := map[string]TestCase{
-		// BROKEN
-		"no_change_list": {
-			Ops: []Operation{
-				// Apply an empty list with the first manager
-				// Meaning we want the manager to own the list itself
-				// but none of its elements
-				Apply{
-					Manager: "one",
-					Object: `
-						list:
-					`,
-					APIVersion: "v1",
-				},
-				// Apply specific elements to the list created by manager one.
-				// Manager two should own these individual elements in the list.
-				// Manager one should continue to own the list itself but none of the elements.
-				Apply{
-					Manager: "two",
-					Object: `
-						list:
-						 - a
-						 - b
-					`,
-					APIVersion: "v1",
-				},
-				// Prior to this apply, manager one SHOULD own the list but none of the individual
-				// elements, but when we use manager two to remove element "a" from the list,
-				// we see that actually manager one becomes an owner of all the elements in the list.
-				//
-				// This occurs because `reconcileWithSchemaWalker` thinks the list's schema has
-				// changed from atomic to granular.
-				//
-				// It was never atomic in the first place, but the reconciler determines node
-				// atomicity by checking if a node (in this case the list itself) exists as a member in the
-				// fieldSet but this node has no children (because the list is empty).
-				Apply{
-					Manager: "two",
-					Object: `
-						list:
-						 - b
-					`,
-					APIVersion: "v1",
-				},
-			},
-			// BROKEN: expected:
-			//Object: `
-			//	list:
-			//	- b
-			//`,
-			// but actually got:
-			Object: `
-				list:
-				- a
-				- b
-			`,
-			APIVersion: "v1",
-			Managed: fieldpath.ManagedFields{
-				"one": fieldpath.NewVersionedSet(
-					// BROKEN expected:
-					//_NS(
-					//	_P("list"),
-					//),
-					// but actually got:
-					_NS(
-						_P("list"),
-						_P("list", _V("a")),
-						_P("list", _V("b")),
-					),
-					"v1",
-					false,
-				),
-				"two": fieldpath.NewVersionedSet(
-					_NS(
-						_P("list", _V("b")),
-					),
-					"v1",
-					false,
-				),
-			},
-		},
-	}
-
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			if err := test.Test(noChangeParser); err != nil {
 				t.Fatal(err)
 			}
 		})
