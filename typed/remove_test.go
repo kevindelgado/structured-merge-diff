@@ -742,9 +742,6 @@ func (tt removeTestCase) test(t *testing.T) {
 					t.Fatalf("unable to parser/validate extractOutput yaml: %v\n%v", err, quadruplet.extractOutput)
 				}
 				exGot := tv.ExtractItems(quadruplet.set)
-				//fmt.Printf("exGot = %+v\n", exGot)
-				//fmt.Printf("exGot.AsValue() = %+v\n", exGot.AsValue())
-				//fmt.Printf("value.ToString(exGot.AsValue()) = %+v\n", value.ToString(exGot.AsValue()))
 				if !value.Equals(exGot.AsValue(), exOut.AsValue()) {
 					t.Errorf("ExtractItems expected\n%v\nbut got\n%v\n",
 						value.ToString(exOut.AsValue()), value.ToString(exGot.AsValue()),
@@ -760,7 +757,7 @@ func TestRemove(t *testing.T) {
 	for _, tt := range removeCases {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			//t.Parallel()
+			t.Parallel()
 			tt.test(t)
 		})
 	}
